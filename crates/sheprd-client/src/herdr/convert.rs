@@ -139,6 +139,18 @@ impl Resume {
         words
     }
 
+    /// Refuses a folder that is gone from this machine, such as a removed
+    /// worktree's: `sheprd-acp` would refuse it only after the agent had
+    /// stopped, leaving the terminal with neither. Only for a pane on the
+    /// machine this runs on.
+    pub fn folder_here(&self) -> Result<(), Error> {
+        if Path::new(&self.cwd).is_dir() {
+            Ok(())
+        } else {
+            Err(Error::FolderGone(self.cwd.clone()))
+        }
+    }
+
     /// The line typed into the pane's shell to run `program`, a path on
     /// the pane's own machine. Refusing happens here, before the agent
     /// stops, so a folder or flag no line can carry costs nothing.

@@ -17,6 +17,11 @@ installations remain externally managed. The Nix flake embeds no update key.
 Windows installations update by running the release's signed per-user installer
 (see [Windows Installers](#windows-installers)).
 
+A Sheprd app on another machine, reached over SSH, can be updated from this one
+without a screen there: its sidebar header offers the release, the user
+confirms here, and that app's own updater installs it with the same checks
+(see [Updating Sheprd on other machines](cli.md#updating-sheprd-on-other-machines)).
+
 ## Repository Configuration
 
 | Setting | Kind | Contents |

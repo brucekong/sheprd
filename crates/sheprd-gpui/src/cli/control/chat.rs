@@ -16,6 +16,8 @@ pub enum ChatCommand {
         /// The pane, else the caller's own.
         pane: Option<String>,
     },
+    /// The person's text shortcuts, which every chat's composer offers.
+    Shortcuts,
     /// Show the chat view over a pane (`On`), or its terminal (`Off`).
     View {
         switch: Switch,
@@ -30,6 +32,7 @@ pub(super) fn chat(args: &mut Args) -> Result<ChatCommand, CliError> {
     };
     let switch = match verb.to_str() {
         Some("status" | "list") => return Ok(ChatCommand::Status),
+        Some("shortcuts") => return Ok(ChatCommand::Shortcuts),
         Some("new") => {
             let pane = args.text_option("--pane")?;
             let agent = args

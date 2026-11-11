@@ -261,7 +261,8 @@ public actor ComputerLink {
                     watched[view] = .some(nil)
                     try await opened.send(.subscribe(view, since: nil, size: sizes[view]))
                 }
-                continue
+                // Passed on as well, so the phone's log shows a view that
+                // keeps reloading.
             default:
                 break
             }

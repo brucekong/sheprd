@@ -1,9 +1,12 @@
 import SheprdRemoteCore
 import SwiftUI
 
-/// iPad B: the attention list beside the open chat, with the chat's
-/// workspace terminal in an inspector. Workspaces and Settings open
-/// as sheets; a chat or terminal can also open in a window of its own.
+/// iPad B: a sidebar with its own tab bar along the bottom (Chats,
+/// Workspaces, Settings) beside the open chat, with the chat's workspace
+/// terminal in an inspector. A workspace opens in the sidebar, and its
+/// tabs beside it; a chat or terminal can also open in a window of its
+/// own. One search, shared by Chats and Workspaces, covers workspaces,
+/// chats, their messages, and terminals.
 /// A foldable iPhone opened flat gets it too (`RootView.wideWidth`).
 struct IPadRoot: View {
     @Environment(AppModel.self) private var model
@@ -11,73 +14,189 @@ struct IPadRoot: View {
     @Binding var pairing: Bool
     @Binding var selection: Route?
     @State private var query = ""
-    @State private var showing: Panel?
+    @State private var tab = SidebarTab.chats
+    @State private var workspacesPath: [WorkspaceKey] = []
     @AppStorage(HomeRow.sortKey) private var sort = AgentSort.priority
 
-    enum Panel: String, Identifiable {
-        case workspaces, settings
-        var id: String { rawValue }
-    }
+    enum SidebarTab: Hashable { case chats, workspaces, settings }
 
+    /// The workspace a chat or terminal's header opened, over the window.
+    @State private var workspaceSheet: WorkspaceKey?
+    /// The sidebar is shown; ⌘⌃S or its button hides it.
+    @State private var sidebarShown = true
+
+    /// Laid out side by side rather than in a `NavigationSplitView`: its
+    /// sidebar column draws a bar of its own over the stacks of the tabs
+    /// inside it, hiding their search and buttons.
     var body: some View {
-        NavigationSplitView {
-            AttentionList(selection: $selection, query: query)
-                .nearbyBanner()
-                .connectionToast(pairing: $pairing)
-                .searchable(text: $query, placement: .sidebar, prompt: "Chats, messages, terminals")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) { AgentSortMenu(sort: $sort) }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("Talk to Sheprd", systemImage: "waveform") { model.talk() }
-                            .disabled(model.fleet.machines.isEmpty)
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("New Workspace", systemImage: "plus") { model.creating = .workspace(device: nil) }
-                            .keyboardShortcut("n", modifiers: .command)
-                            .disabled(model.fleet.machines.isEmpty)
-                    }
-                    ToolbarItemGroup(placement: .bottomBar) {
-                        Spacer()
-                        Button("Workspaces", systemImage: "square.stack.3d.up") { showing = .workspaces }
-                        Button("Settings", systemImage: "gearshape") { showing = .settings }
-                            .keyboardShortcut(",", modifiers: .command)
+        HStack(spacing: 0) {
+            // Kept alive while hidden, so each tab's stack, search, and
+            // place in Settings are where the person left them.
+            sidebar
+                .frame(width: 360)
+                .frame(width: sidebarShown ? 360 : 0, alignment: .trailing)
+                .clipped()
+                .opacity(sidebarShown ? 1 : 0)
+                .allowsHitTesting(sidebarShown)
+                .accessibilityHidden(!sidebarShown)
+            if sidebarShown {
+                Divider().ignoresSafeArea()
+            }
+            detail
+                // A chat or terminal leads to its workspace, to start
+                // another tab there.
+                .environment(\.offersWorkspace, true)
+                .frame(maxWidth: .infinity)
+                .overlay(alignment: .topLeading) {
+                    if !sidebarShown {
+                        Button("Show Sidebar", systemImage: "sidebar.left") { sidebarShown = true }
+                            .labelStyle(.iconOnly)
+                            .font(.title3)
+                            .padding(10)
+                            .glassEffect(in: .circle)
+                            .padding(.leading, 12)
+                            .padding(.top, 4)
+                            .transition(.opacity)
                     }
                 }
-        } detail: {
-            switch selection {
-            case let .chat(key, title)?:
-                ChatWithTerminal(key: key, title: title).id(key)
-            case let .term(key, title)?:
-                NavigationStack { TerminalScreen(key: key, title: title) }.id(key)
-            case let .workspace(key)?:
-                // Unfolding a phone that was showing one.
-                NavigationStack { WorkspaceScreen(key: key).withRoutes() }.id(key)
-            case let .changes(key)?:
-                NavigationStack { ChangesScreen(key: key).withRoutes() }.id(key)
-            case nil:
-                ContentUnavailableView("Pick a chat", systemImage: "bubble.left.and.text.bubble.right",
-                                       description: Text("What needs you is at the top of the list."))
-            }
         }
-        .background { ChatKeys(selection: $selection) }
-        .sheet(item: $showing) { panel in
+        .animation(.snappy, value: sidebarShown)
+        .background { ChatKeys(selection: $selection, tab: $tab, sidebarShown: $sidebarShown) }
+        .sheet(isPresented: $pairing) { PairView() }
+        // From a chat or terminal's header: the workspace in a sheet,
+        // which closes once a tab is picked or started, and that tab opens
+        // beside the sidebar.
+        .onChange(of: model.pendingWorkspace) { _, key in
+            guard let key else { return }
+            workspaceSheet = key
+            model.pendingWorkspace = nil
+        }
+        .sheet(item: $workspaceSheet) { key in
             NavigationStack {
-                switch panel {
-                case .workspaces: WorkspacesTab().withRoutes()
-                case .settings: SettingsView()
-                }
+                WorkspaceScreen(key: key)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Done") { workspaceSheet = nil }
+                        }
+                    }
             }
+            .environment(\.routeOpener, RouteOpener(current: selection) { [selection = $selection, sheet = $workspaceSheet] route in
+                sheet.wrappedValue = nil
+                selection.wrappedValue = route
+            })
             .connectionToast(pairing: $pairing)
+            // Forms it opens, such as a new tab with a first prompt, and the
+            // nearby card, go over it rather than behind it.
+            .sheet(item: Bindable(model).creating) { CreatingSheet(creating: $0) }
             .nearbyCard(window)
             .onAppear { window?.panelOpen = true }
             .onDisappear { window?.panelOpen = false }
-            // Pair Again from Settings or a computer's page: over this
-            // sheet, as the split view's own would open behind it.
-            .sheet(isPresented: $pairing) { PairView() }
             .presentationSizing(.page)
         }
-        .sheet(isPresented: Binding(get: { pairing && showing == nil }, set: { pairing = $0 })) { PairView() }
+        // A tab started from the sheet's forms opens beside the sidebar,
+        // so the sheet makes way for it.
+        .onChange(of: model.pendingRoute) { _, route in
+            if route != nil { workspaceSheet = nil }
+        }
+        #if DEBUG
+        // The simulator loop's `-tab workspaces|settings` picks the
+        // sidebar's tab, and `-openWorkspace ID` opens that workspace in it.
+        .task {
+            switch UserDefaults.standard.string(forKey: "tab") {
+            case "workspaces": tab = .workspaces
+            case "settings": tab = .settings
+            default: break
+            }
+            // Waits for a computer to list it: a fresh install or a new
+            // workspace has no cached home to find it in at launch.
+            var found: Fleet.Machine?
+            if let workspace = UserDefaults.standard.string(forKey: "openWorkspace") {
+                for _ in 0..<40 where found == nil {
+                    found = model.fleet.machines.first { $0.home?.workspaces.contains { $0.id == workspace } == true }
+                    if found == nil { try? await Task.sleep(for: .milliseconds(500)) }
+                }
+            }
+            if let workspace = UserDefaults.standard.string(forKey: "openWorkspace"), let machine = found {
+                tab = .workspaces
+                workspacesPath = [WorkspaceKey(device: machine.id, workspace: workspace)]
+                // `-openChat YES` opens its first chat beside it.
+                if UserDefaults.standard.bool(forKey: "openChat"),
+                   let item = model.fleet.chatItems.first(where: { $0.computer.device == machine.id && $0.workspace.id == workspace }) {
+                    selection = .chat(item.key, title: item.chat.title)
+                }
+            }
+        }
+        #endif
+    }
+
+    @ViewBuilder
+    private var detail: some View {
+        switch selection {
+        case let .chat(key, title)?:
+            ChatWithTerminal(key: key, title: title).id(key)
+        case let .term(key, title)?:
+            NavigationStack { TerminalScreen(key: key, title: title) }.id(key)
+        case let .workspace(key)?:
+            // Unfolding a phone that was showing one.
+            NavigationStack { WorkspaceScreen(key: key).withRoutes() }.id(key)
+        case let .changes(key)?:
+            NavigationStack { ChangesScreen(key: key).withRoutes() }.id(key)
+        case nil:
+            ContentUnavailableView("Pick a chat", systemImage: "bubble.left.and.text.bubble.right",
+                                   description: Text("What needs you is at the top of the list."))
+        }
+    }
+
+    private var sidebar: some View {
+        TabView(selection: $tab) {
+            Tab("Chats", systemImage: "bubble.left.and.bubble.right", value: SidebarTab.chats) {
+                NavigationStack { chats }
+                    .connectionToast(pairing: $pairing)
+            }
+            .badge(model.fleet.waiting)
+            Tab("Workspaces", systemImage: "square.stack.3d.up", value: SidebarTab.workspaces) {
+                NavigationStack(path: $workspacesPath) { WorkspacesTab(query: $query).toolbar { hideSidebar } }
+                    .connectionToast(pairing: $pairing)
+            }
+            Tab("Settings", systemImage: "gearshape", value: SidebarTab.settings) {
+                NavigationStack { SettingsView().toolbar { hideSidebar } }
+                    .connectionToast(pairing: $pairing)
+            }
+        }
+        // A phone's tab bar, along the sidebar's bottom, rather than the
+        // regular width's bar along the window's top.
+        .environment(\.horizontalSizeClass, .compact)
+        .environment(\.routeOpener, RouteOpener(current: selection) { [selection = $selection] in selection.wrappedValue = $0 })
+    }
+
+    /// On each tab's first screen; screens pushed above lead with Back.
+    private var hideSidebar: some ToolbarContent {
+        ToolbarItem(placement: .topBarLeading) {
+            Button("Hide Sidebar", systemImage: "sidebar.left") { sidebarShown = false }
+        }
+    }
+
+    private var chats: some View {
+        Group {
+            if query.isEmpty { AttentionList(selection: $selection) } else { SearchResults(query: query) }
+        }
+        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Workspaces, chats, terminals")
+        .navigationDestination(for: WorkspaceKey.self) { WorkspaceScreen(key: $0) }
+        .nearbyBanner()
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            hideSidebar
+            ToolbarItem(placement: .topBarLeading) { AgentSortMenu(sort: $sort) }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Talk to Sheprd", systemImage: "waveform") { model.talk() }
+                    .disabled(model.fleet.machines.isEmpty)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("New Workspace", systemImage: "plus") { model.creating = .workspace(device: nil) }
+                    .keyboardShortcut("n", modifiers: .command)
+                    .disabled(model.fleet.machines.isEmpty)
+            }
+        }
     }
 }
 
@@ -87,26 +206,16 @@ private struct AttentionList: View {
     @Environment(\.openWindow) private var openWindow
     @AppStorage(HomeRow.sortKey) private var sort = AgentSort.priority
     @Binding var selection: Route?
-    let query: String
-    @State private var messages: [MessageHit] = []
 
     var body: some View {
-        let chats = model.fleet.chatItems.filter(matches)
-        let terminals = model.fleet.terminalItems.filter(matches)
+        let chats = model.fleet.chatItems
+        let terminals = model.fleet.terminalItems
         // Tabs with an agent list with the chats; the rest under Terminals.
         let agents = terminals.filter { $0.agent != nil }
         let shells = terminals.filter { $0.agent == nil }
         List(selection: $selection) {
             ForEach(HomeRow.sections(sort, chats: chats, agents: agents)) { section in
                 Section(section.title) { ForEach(section.items) { row($0) } }
-            }
-            if !query.isEmpty, !messages.isEmpty {
-                Section("Messages") {
-                    ForEach(messages) { hit in
-                        let route = Route.chat(hit.item.key, title: hit.item.chat.title)
-                        MessageHitRow(hit: hit, query: query).tag(route).contextMenu { windowButton(route) }
-                    }
-                }
             }
             if !shells.isEmpty {
                 Section("Terminals") {
@@ -124,11 +233,6 @@ private struct AttentionList: View {
         }
         .listStyle(.sidebar)
         .refreshable { model.fleet.networkChanged() }
-        .task(id: query) {
-            let found = await model.fleet.searchMessages(query)
-            guard !Task.isCancelled else { return }
-            messages = found
-        }
     }
 
     @ViewBuilder
@@ -149,24 +253,24 @@ private struct AttentionList: View {
             openWindow(value: route)
         }
     }
-
-    private func matches(_ item: ChatItem) -> Bool {
-        query.isEmpty || item.chat.title.localizedCaseInsensitiveContains(query) || item.workspace.label.localizedCaseInsensitiveContains(query)
-    }
-
-    private func matches(_ item: TerminalItem) -> Bool {
-        query.isEmpty || item.title.localizedCaseInsensitiveContains(query) || item.terminal.label.localizedCaseInsensitiveContains(query)
-            || item.workspace.label.localizedCaseInsensitiveContains(query)
-    }
 }
 
-/// ⌘⌥↑ and ⌘⌥↓ move through the chats in the sidebar's order.
+/// ⌘⌥↑ and ⌘⌥↓ move through the chats in the sidebar's order; ⌘,
+/// shows Settings in the sidebar.
 private struct ChatKeys: View {
     @Environment(AppModel.self) private var model
     @Binding var selection: Route?
+    @Binding var tab: IPadRoot.SidebarTab
+    @Binding var sidebarShown: Bool
 
     var body: some View {
         Group {
+            Button("Toggle Sidebar") { sidebarShown.toggle() }.keyboardShortcut("s", modifiers: [.command, .control])
+            Button("Settings") {
+                tab = .settings
+                sidebarShown = true
+            }
+            .keyboardShortcut(",", modifiers: .command)
             Button("Previous Chat") { move(-1) }.keyboardShortcut(.upArrow, modifiers: [.command, .option])
             Button("Next Chat") { move(1) }.keyboardShortcut(.downArrow, modifiers: [.command, .option])
         }
@@ -280,7 +384,7 @@ private struct MiniTerminal: View {
                 }
                 .defaultScrollAnchor(.bottom)
             } else {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                TermWaitingView(store: store)
             }
         }
         .onAppear { store = model.fleet.openTerm(key) }

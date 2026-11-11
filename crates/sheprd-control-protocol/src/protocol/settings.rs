@@ -48,6 +48,15 @@ pub enum SettingsOp {
     /// Ask for the latest release; never downloads or installs.
     CheckUpdate,
     Update,
+    /// Install the release the updater offers, through download, install,
+    /// and restart. Unconfirmed, it only shows the app's update dialog.
+    /// `confirmed` says the user approved it in another Sheprd that reaches
+    /// this machine (`sheprd host update` there); a caller in a Herdr pane
+    /// or terminal of this app cannot confirm it.
+    InstallUpdate {
+        #[serde(default)]
+        confirmed: bool,
+    },
     /// The integrations Herdr offers the selected host.
     Integrations,
     /// The locale the windows show, and what chose it. Changing the
@@ -147,6 +156,9 @@ pub enum Reply {
     Update {
         state: String,
         latest: Option<String>,
+        /// The running app's version; absent from apps that predate it.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        current: Option<String>,
         /// Why updates are disabled, or what failed.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         detail: Option<String>,

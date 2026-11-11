@@ -5,6 +5,7 @@ mod alert_lines;
 mod chat_lines;
 mod core_caller;
 mod remote_lines;
+mod shortcut_lines;
 
 #[test]
 fn output_is_whole_and_only_a_terminal_loses_controls() {

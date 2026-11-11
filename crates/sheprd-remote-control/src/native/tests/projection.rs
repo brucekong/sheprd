@@ -39,6 +39,7 @@ fn project(summaries: HashMap<String, Summary>, pull_requests: &PullRequests) ->
         load: None,
         summaries,
         pull_requests,
+        shortcuts_ms: 0,
         tags: Default::default(),
         version: "20261106.1",
         waiting: 0,

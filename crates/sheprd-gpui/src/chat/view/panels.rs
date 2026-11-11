@@ -1,11 +1,18 @@
 //! What sits between the entries and the composer: permission requests,
-//! queued prompts, and slash-command completions.
+//! queued prompts, and the slash list: text shortcuts and slash commands.
 
-use super::{super::chats::ChatPane, Hues};
+use super::{
+    super::{
+        chats::ChatPane,
+        shortcuts::{Completion, Picked, completions},
+    },
+    Hues,
+    shortcuts::one_line,
+};
 use crate::i18n::fl;
 use crate::{SheprdWindow, config::corners, notifications::safe_text};
 use gpui::{prelude::*, *};
-use sheprd_chat_protocol::{Command, PermissionKind, assist};
+use sheprd_chat_protocol::{Command, PermissionKind};
 
 /// Queued prompts in view at once; the list scrolls past them.
 const QUEUE_ROWS: f32 = 3.5;
@@ -164,8 +171,9 @@ impl SheprdWindow {
         )
     }
 
-    /// The agent's slash commands the composer's text would complete to,
-    /// over the composer; Tab or a click takes the selected one.
+    /// What a slash in the composer offers, over the composer: the
+    /// person's text shortcuts first, then the agent's slash commands its
+    /// text would complete to. Tab or a click takes the selected one.
     pub(super) fn render_chat_completions(
         &self,
         chat: &ChatPane,
@@ -173,17 +181,29 @@ impl SheprdWindow {
     ) -> Option<Div> {
         let theme = &self.theme;
         let text = chat.composer.as_ref()?.read(cx).text().to_owned();
-        let found = assist::completions(chat.session.transcript(), &text);
+        let shortcuts = crate::text_shortcuts::Store::current(cx);
+        let found = completions(&shortcuts.shortcuts, chat.session.transcript(), &text);
         if found.is_empty() {
             return None;
         }
         let selected = chat.completion.min(found.len() - 1);
-        let rows = found.into_iter().enumerate().map(|(index, command)| {
-            let pane_id = chat.target.pane_id.clone();
-            let name = command.name.clone();
+        let any_shortcut = matches!(found.first(), Some(Completion::Shortcut(_)));
+        let heading = |label: String| {
             div()
-                .id(("chat-completion", index))
-                .debug_selector(move || format!("chat-completion-{index}"))
+                .px(px(8.))
+                .pt(px(2.))
+                .text_size(self.chat_small_text())
+                .text_color(rgb(theme.muted))
+                .child(label)
+        };
+        let mut rows: Vec<AnyElement> = Vec::with_capacity(found.len() + 2);
+        if any_shortcut {
+            rows.push(heading(fl!("chat-shortcuts-heading")).into_any_element());
+        }
+        let mut commands = 0;
+        for (index, completion) in found.iter().enumerate() {
+            let row = div()
+                .id(("chat-completion-row", index))
                 .flex()
                 .gap(px(8.))
                 .px(px(8.))
@@ -192,31 +212,69 @@ impl SheprdWindow {
                 .cursor_pointer()
                 .when(index == selected, |row| row.bg(rgb(theme.active)))
                 .hover(|row| row.bg(rgb(theme.active)))
-                .child(
-                    div()
-                        .flex_none()
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .child(format!("/{}", safe_text(&command.name, 60))),
-                )
-                .children(command.hint.as_ref().map(|hint| {
-                    div()
-                        .flex_none()
-                        .text_color(rgb(theme.muted))
-                        .child(safe_text(hint, 60))
-                }))
-                .child(
-                    div()
-                        .min_w_0()
-                        .truncate()
-                        .text_color(rgb(theme.subtext()))
-                        .child(safe_text(&command.description, 200)),
-                )
-                .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                .on_click(cx.listener(move |this, _: &ClickEvent, window, cx| {
-                    cx.stop_propagation();
-                    this.complete_chat_command(&pane_id, &name, window, cx);
-                }))
-        });
+                .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation());
+            let pane_id = chat.target.pane_id.clone();
+            let row = match completion {
+                Completion::Shortcut(shortcut) => {
+                    let text = shortcut.text.clone();
+                    row.debug_selector(move || format!("chat-shortcut-completion-{index}"))
+                        .child(
+                            div()
+                                .flex_none()
+                                .max_w(px(220.))
+                                .truncate()
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child(safe_text(&shortcut.label(), 60)),
+                        )
+                        .child(
+                            div()
+                                .min_w_0()
+                                .truncate()
+                                .text_color(rgb(theme.subtext()))
+                                .child(safe_text(&one_line(&shortcut.text), 200)),
+                        )
+                        .on_click(cx.listener(move |this, _: &ClickEvent, window, cx| {
+                            cx.stop_propagation();
+                            this.use_chat_shortcut(&pane_id, &text, Picked::Slash, window, cx);
+                        }))
+                }
+                Completion::Command(command) => {
+                    if any_shortcut && commands == 0 {
+                        rows.push(
+                            heading(fl!("chat-shortcuts-commands-heading")).into_any_element(),
+                        );
+                    }
+                    let number = commands;
+                    commands += 1;
+                    let name = command.name.clone();
+                    row.debug_selector(move || format!("chat-completion-{number}"))
+                        .child(
+                            div()
+                                .flex_none()
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child(format!("/{}", safe_text(&command.name, 60))),
+                        )
+                        .children(command.hint.as_ref().map(|hint| {
+                            div()
+                                .flex_none()
+                                .text_color(rgb(theme.muted))
+                                .child(safe_text(hint, 60))
+                        }))
+                        .child(
+                            div()
+                                .min_w_0()
+                                .truncate()
+                                .text_color(rgb(theme.subtext()))
+                                .child(safe_text(&command.description, 200)),
+                        )
+                        .on_click(cx.listener(move |this, _: &ClickEvent, window, cx| {
+                            cx.stop_propagation();
+                            this.complete_chat_command(&pane_id, &name, window, cx);
+                        }))
+                }
+            };
+            rows.push(row.into_any_element());
+        }
         Some(
             div()
                 .debug_selector(|| "chat-completions".into())

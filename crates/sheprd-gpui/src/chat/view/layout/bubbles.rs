@@ -72,6 +72,7 @@ impl ChatLayout for Bubbles {
                 .gap(px(6.))
                 .px(px(4.))
                 .child(parts.attach)
+                .child(parts.shortcuts)
                 .children(parts.settings)
                 .child(div().flex_1())
                 .children(parts.usage),

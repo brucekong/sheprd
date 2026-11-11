@@ -1,12 +1,13 @@
 use super::*;
+use crate::test_executable;
 use sheprd_client::{ScriptLimits, run_script_command, shell_quote};
-use std::{fs, os::unix::fs::PermissionsExt, time::Duration};
+use std::time::Duration;
 
 #[test]
 fn teleport_runs_a_quoted_script_through_coder_ssh() {
     let dir = tempfile::tempdir().unwrap();
     let cli = dir.path().join("coder");
-    fs::write(
+    test_executable::write(
         &cli,
         r#"#!/bin/sh
 test "$CODER_URL" = https://coder.example.com || exit 90
@@ -16,9 +17,9 @@ test "$4" = renamed-box.main || exit 93
 test "$#" = 5 || exit 94
 exec /bin/sh -c "$5"
 "#,
+        0o700,
     )
     .unwrap();
-    fs::set_permissions(&cli, fs::Permissions::from_mode(0o700)).unwrap();
     let mut command = ssh_command(
         &cli,
         &settings(),

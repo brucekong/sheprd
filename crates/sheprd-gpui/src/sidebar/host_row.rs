@@ -115,11 +115,13 @@ impl SheprdWindow {
         let muted =
             crate::notification_mutes::Mutes::any(cx).is_some_and(|mutes| mutes.host(&endpoint.id));
         let muted_size = (line_height(font) * 0.75).round();
-        // The removal pulse, the count, the mute mark, and the gauges take
-        // their room from the label, not from the status.
+        let update = self.update_pill(endpoint, prefix, font, cx);
+        // The removal pulse, the count, the mute mark, the update pill, and
+        // the gauges take their room from the label, not from the status.
         let label_width = (host_label_width
             - if removing { dot + host_gap } else { 0. }
             - if muted { muted_size + host_gap } else { 0. }
+            - update.as_ref().map_or(0., |(width, _)| width + host_gap)
             - working_width
             - gauges.as_ref().map_or(0., |(width, ..)| width + host_gap))
         .max(0.);
@@ -327,6 +329,7 @@ impl SheprdWindow {
                             )
                         },
                     )
+                    .when_some(update, |row, (_, pill)| row.child(pill))
                     .when(muted, |row| {
                         row.child(
                             crate::icons::muted(theme, muted_size)

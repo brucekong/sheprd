@@ -1,0 +1,6 @@
+{
+  "type": "error",
+  "message": "no such terminal",
+  "view": "term",
+  "pane": "p2"
+}

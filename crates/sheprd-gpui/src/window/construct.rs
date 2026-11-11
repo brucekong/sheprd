@@ -266,6 +266,7 @@ impl SheprdWindow {
             pressed_terminal_link: None,
             regions: Vec::new(),
             remote_browser: Vec::new(),
+            remote_updates: Default::default(),
             removal: None,
             resize_mode: false,
             review_files_width: crate::panel_resize::REVIEW_FILES,

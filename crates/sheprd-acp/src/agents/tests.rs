@@ -5,6 +5,7 @@ use super::*;
 mod installed;
 #[cfg(unix)]
 mod launch;
+mod version_managers;
 
 #[cfg(unix)]
 fn install(dir: &Path, name: &str) {

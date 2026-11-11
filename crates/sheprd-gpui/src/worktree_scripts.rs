@@ -747,7 +747,7 @@ pub(crate) fn kept_script_checkout(
     let path = crate::git::git(
         folder,
         &["rev-parse", "--show-toplevel"],
-        "locate worktree script checkout",
+        "locate worktree script checkout", // i18n: data
         std::time::Instant::now() + std::time::Duration::from_secs(15),
         &|| cancelled.load(Ordering::Acquire),
     )?;

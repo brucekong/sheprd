@@ -330,6 +330,8 @@ pub(crate) struct SheprdWindow {
     pub(crate) regions: Vec<regions::RegionLayers>,
     /// Pages remote agents asked for, waiting for their port's forward.
     pub(crate) remote_browser: Vec<crate::remote_browser::Forwarding>,
+    /// Sheprd on the other machines the window reaches, and updating it.
+    pub(crate) remote_updates: crate::remote_update::RemoteUpdates,
     /// A `worktree.remove` queued after its dialog closed.
     pub(crate) removal: Option<menu::Removal>,
     /// Herdr's resize mode: direction keys resize the focused pane until
@@ -742,6 +744,7 @@ impl SheprdWindow {
         self.poll_overview(cx);
         self.poll_security(cx);
         self.poll_automations(cx);
+        self.poll_remote_updates(window, cx);
         if self.update_system_load() {
             cx.notify();
         }

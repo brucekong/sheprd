@@ -4,6 +4,7 @@
 
 use super::*;
 use serde_json::json;
+use wire::View;
 
 fn parse(value: serde_json::Value) -> Option<ClientMessage> {
     serde_json::from_value(value).ok()
@@ -47,7 +48,8 @@ async fn a_scroll_of_no_lines_or_of_an_unfollowed_terminal_is_refused() {
         assert_eq!(
             session.next().await,
             ServerMessage::Error {
-                message: expected.into()
+                message: expected.into(),
+                view: Some(View::Term { pane: "p2".into() }),
             }
         );
     }
@@ -109,7 +111,8 @@ mod attached {
         assert_eq!(
             session.next().await,
             ServerMessage::Error {
-                message: "this terminal cannot scroll from the phone".into()
+                message: "this terminal cannot scroll from the phone".into(),
+                view: Some(View::Term { pane: "p2".into() }),
             }
         );
         let again =

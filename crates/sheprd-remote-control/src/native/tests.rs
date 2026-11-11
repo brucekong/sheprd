@@ -10,6 +10,8 @@ mod fixtures;
 mod hosts;
 mod installed_agents;
 #[cfg(unix)]
+mod installed_agents_path;
+#[cfg(unix)]
 mod live_chat;
 mod messages;
 mod pictures;

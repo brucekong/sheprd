@@ -60,6 +60,10 @@ pub enum SoundCommand {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum UpdateCommand {
     Check,
+    /// `confirmed` only from another Sheprd that asked its user first.
+    Install {
+        confirmed: bool,
+    },
     Status,
 }
 
@@ -173,6 +177,9 @@ pub(super) fn update(args: &mut Args) -> Result<UpdateCommand, CliError> {
     Ok(match verb.to_str() {
         Some("status") => UpdateCommand::Status,
         Some("check") => UpdateCommand::Check,
+        Some("install") => UpdateCommand::Install {
+            confirmed: args.flag("--confirmed"),
+        },
         _ => return Err(unknown("update", verb)),
     })
 }

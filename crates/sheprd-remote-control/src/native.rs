@@ -67,6 +67,7 @@ fn home(state: &Shared) -> Home {
         load: *state.load.borrow(),
         summaries,
         pull_requests: &pull_requests,
+        shortcuts_ms: state.shortcuts.current().updated_ms,
         tags: state.tags.current(),
         version: crate::server::version(),
         waiting: state.attention().len(),
@@ -145,7 +146,7 @@ async fn serve(mut socket: WebSocket, state: Shared, device: DeviceId, token: Se
                         Err(_) => Some("that message is not one this socket reads"),
                     };
                     if let Some(message) = reply {
-                        let error = ServerMessage::Error { message: message.to_owned() };
+                        let error = ServerMessage::Error { message: message.to_owned(), view: None };
                         if !send(&mut socket, &error).await {
                             break;
                         }

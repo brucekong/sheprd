@@ -24,6 +24,7 @@ pub(crate) mod slide;
 mod sticky;
 mod tag_groups;
 mod tokens;
+mod update_pill;
 mod view;
 mod wash;
 mod workspaces;

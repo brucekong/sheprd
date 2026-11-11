@@ -71,8 +71,9 @@ impl SheprdWindow {
         })
     }
 
-    /// Tells the tags which devices this window can reach now: this computer,
-    /// and the machines connected, so no exchange waits on one that is away.
+    /// Tells the tags and the text shortcuts which devices this window can
+    /// reach now: this computer, and the machines connected, so no exchange
+    /// waits on one that is away.
     pub(crate) fn reach_device_tags(&self, cx: &mut Context<Self>) {
         let reachable = self
             .endpoints
@@ -94,6 +95,8 @@ impl SheprdWindow {
                     .then(|| (endpoint.id.clone(), Daemon::Remote(target.clone())))
             })
             .collect();
+        // The same computers keep the text shortcuts.
+        crate::text_shortcuts::Store::reach(cx, &reachable);
         DeviceTags::reach(cx, reachable);
     }
 

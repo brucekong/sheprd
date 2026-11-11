@@ -101,6 +101,8 @@ pub(crate) enum Page {
     RemoteDevices,
     /// Confirming a phone may be paired with another machine it asked for.
     RemoteHostAsk,
+    /// Confirming Sheprd on another machine should update itself.
+    RemoteUpdate,
     RemoveDevice,
     /// Confirming a saved WSL distribution should be forgotten.
     RemoveWsl,

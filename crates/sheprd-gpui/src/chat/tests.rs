@@ -55,6 +55,7 @@ mod restore;
 mod running;
 mod selection;
 mod session;
+mod shortcuts;
 mod start;
 mod stop;
 mod streaming;

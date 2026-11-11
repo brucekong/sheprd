@@ -147,6 +147,7 @@ and builds without embedded pages return exit 8. See [px0](../crates/sheprd-gpui
 | `fan-out PROMPT [--agent KIND[:N]]...` | Open the fan-out dialog prefilled; you start it there |
 | `chat [status]` | The `sheprd-acp` chat panes of the window's host, this machine or an SSH host: agent, status, model, context window use, and whether the chat view or the terminal shows |
 | `chat convert [--pane ID]` | Move the terminal agent in your pane (or ID, else the focused one) into a `sheprd-acp` chat in the same pane, keeping its conversation. From a Herdr 2 pane, your pane is your terminal (`HC_TERMINAL_ID`), whose id in `chat` is `core:` and the terminal's (see [Moving a terminal agent into a chat](rich-chat.md#moving-a-terminal-agent-into-a-chat)). Returns once the move has started; `chat` shows the chat when it attaches. Exits 6 while the agent works, 5 when the pane has no terminal agent, and 8 for an agent or pane that cannot move |
+| `chat shortcuts` | Your text shortcuts, the prompts every chat's composer offers (type `/`, or use the shortcuts button beside +), in order: each label and its text. `--json` adds each one's `id` and `title`, the list's `updated_ms`, and `complete`, false when the list holds more text than one answer carries. The list is the same on this computer, every connected SSH host with `sheprd-remote-control`, and the phones paired with them; Settings > Text Shortcuts edits it. Exits 4 when there are none |
 | `chat show\|hide\|toggle [--pane ID]` | Show the native chat view over your pane (or ID, else the focused one), or its terminal |
 | `chat new AGENT [--pane ID]` | Open a tab running a `sheprd-acp` chat with a built-in agent (`claude`, `codex`, `copilot`, `agy`, `gemini`, `opencode`, `pi`) in the workspace and folder of your pane (or ID). On an SSH host the tab runs that host's `sheprd-acp` (see [Chats on SSH hosts](#chats-on-ssh-hosts)). With no Herdr pane to go by, as when called from a Herdr 2 pane, a Herdr 2 tab in the active group splits its pane in use with the chat instead (see [Chats in Herdr 2 panes](rich-chat.md#chats-in-herdr-2-panes)); its pane id in `chat` is `core:` and the terminal's. Exits 8 when `sheprd-acp` is missing here, the host cannot be reached, or the agent is not installed on it (`sheprd-acp agents` lists those that are) |
 
@@ -166,9 +167,10 @@ not take it either.
 
 | Command | What it does |
 | --- | --- |
-| `host [list]`, `host select ID` | The window's hosts, with their tags; show another one |
+| `host [list]`, `host select ID` | The window's hosts, with their tags and, for an SSH or cloud host whose own Sheprd offers a newer release, that release (`update` in `--json`); show another one |
 | `host mute\|unmute [HOST]` | Silence a host's notifications as a whole, or let them through again, by ID or label; absent, your host. Works while it is offline |
 | `host tag ID [TAG...]` | Replace the tags that group a host in the sidebar and on paired phones; with no tags, clear them. Each computer's daemon keeps its own tags, so a host away gets the edit once it is back |
+| `host update [HOST]` | Ask in the app to update the Sheprd app running on an SSH or cloud host, by ID or label (default: your workspace's host), as its header's Update pill does; the user confirms there (see [Updating Sheprd on other machines](#updating-sheprd-on-other-machines)). Exits 4 with the reason when it offers no newer release, 5 when no connected host has that name, 6 while a dialog is open, 8 for this computer, which `update` covers |
 | `pr [status]\|checks\|comments\|open` | Your branch's pull request, on the window's selected host. `comments` needs your workspace focused |
 | `pr quota` | Last reported GraphQL points used, limit, and remaining, plus rate-limit retry delays for the window's GitHub accounts. `--json` returns records merged by login: known observations are preferred, then the latest reset window and greatest usage within it; retry delays retain the longest pause. Usage is never summed across credentials. Unavailable quotas are `null`. No network request is made. |
 | `ports [list]` | Ports your workspace listens on, and forwards |
@@ -208,7 +210,8 @@ not take it either.
 | `keybinds [list]`, `keybinds check` | Shortcuts; custom Herdr commands this client cannot reach |
 | `caffeine [status]`, `caffeine on\|off\|toggle [--for 30m]` | Keep the machine awake |
 | `sound [list]`, `sound play [done\|request]`, `bell` | Sounds play at `sound.volume` percent (`config set sound.volume 30`) |
-| `update [status]`, `update check` | Never downloads or installs |
+| `update [status]`, `update check` | Never downloads or installs. `--json` adds the running app's `current` version |
+| `update install [--confirmed]` | Open the app's update dialog; the user installs there. `--confirmed` is how another Sheprd that reaches this machine over SSH hands over an update its user approved there: the app downloads, verifies, installs, and restarts as for a paired phone. It is refused from this app's own panes and terminals |
 | `integrations [list]` | What Herdr offers the selected host |
 | `integrations install-skill` | Install the agent skill (no app needed) |
 | `logs [--lines N] [--path]` | The app's log (no app needed) |
@@ -373,6 +376,40 @@ sheprd wait tab-closed 12 --timeout 600
 sheprd wait window            # also waits for the app to start
 ```
 
+## Updating Sheprd on other machines
+
+When a machine you reach over SSH (or a cloud device) runs its own Sheprd app,
+this app reads that app's update state every 30 minutes by running
+`sheprd update status --json` there, through the same connection the
+Automations section uses. It looks for `sheprd` or `herdr-gpui` on the
+machine's `PATH` (Homebrew's, `~/.local/bin`, packages), then in
+`/Applications/Sheprd.app` and `~/Applications/Sheprd.app`. A machine without
+Sheprd is looked at again every six hours, and one whose app is not running
+shows nothing.
+
+When that app offers a newer release, the host's sidebar header shows an
+**Update** pill. Clicking it, or `sheprd host update HOST`, opens a
+confirmation naming the machine and both versions. `HOST` accepts any enabled
+saved profile's ID or label from `host list`; profiles for different sessions on
+the same SSH machine share its update state. Confirming runs
+`sheprd update install --confirmed --json` there. The remote app's own
+updater then downloads the release, checks it against the key that build
+embeds, installs it, and restarts, as it does for a paired phone. Its
+daemons, terminals, and agents keep running. The pill shows **Updating…**
+until the machine reports the new version, and **Update failed**, with the
+reason and a retry, if it reports an error or takes longer than 20
+minutes. Temporary terminal disconnects preserve the confirmed update and its
+deadline; removing or disabling the machine stops tracking it. If a later read
+shows the new running version, an earlier failure clears automatically. A machine
+whose Sheprd predates `update install` says so; update it there once.
+
+The remote app refuses `--confirmed` from callers that report a Herdr pane
+or terminal, so an agent there cannot pass for the user. That identity is
+whatever the caller reports, so it is a guard, not a security boundary.
+Anything that can run commands as that user on the machine could start the
+update anyway, but only a release signed by the app's update key is ever
+installed.
+
 ## What stays in the app
 
 Commands never bypass a confirmation. Restoring a checkpoint, teleporting a
@@ -386,7 +423,9 @@ confirms there.
 work, run on a machine the user saved. Launching the app or requesting a new
 terminal can start the appropriate local daemon: installed Herdr 1, or a
 user-installed/bundled herdr-core. Existing Herdr 1 sessions are not migrated,
-and no command upgrades a personal daemon. `update` never installs the app;
+and no command upgrades a personal daemon. `update` never installs the app
+without the user: `update install` opens its dialog, and `--confirmed` comes
+only from another Sheprd whose user approved it in that app's dialog;
 `cloud create` installs Herdr only on the machines the user confirmed, as
 creating them in Settings does.
 

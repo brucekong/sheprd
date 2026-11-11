@@ -71,7 +71,8 @@ async fn a_size_out_of_range_is_refused() {
     assert_eq!(
         session.next().await,
         ServerMessage::Error {
-            message: "terminal size out of range".into()
+            message: "terminal size out of range".into(),
+            view: Some(View::Term { pane: "p2".into() }),
         }
     );
 }

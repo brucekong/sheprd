@@ -243,10 +243,12 @@ impl SheprdWindow {
                     .then(|| self.render_chat_auto_accept(chat, cx).into_any_element()),
             )
             .collect();
+        let shortcuts = self.render_chat_shortcuts_button(chat, cx);
         let parts = ComposerParts {
             chips,
             draft,
             attach,
+            shortcuts,
             settings,
             usage: self.render_chat_usage(chat),
             send,
@@ -292,7 +294,9 @@ impl SheprdWindow {
             .children(
                 chat.menu
                     .clone()
+                    .filter(|menu| *menu != super::super::chats::Menu::Shortcuts)
                     .map(|menu| self.render_chat_menu(chat, &menu, cx)),
             )
+            .children(self.render_chat_shortcuts(chat, cx))
     }
 }

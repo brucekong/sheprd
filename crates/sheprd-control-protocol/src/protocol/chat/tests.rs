@@ -105,3 +105,5 @@ fn chat_convert_has_a_stable_wire_form() {
     );
     assert_eq!(serde_json::from_str::<Reply>(&text).unwrap(), reply);
 }
+
+mod shortcuts;

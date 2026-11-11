@@ -226,6 +226,7 @@ pub fn run(
         return Err(convert::Error::NoShell(agent).into());
     }
     let resume = resume(&found, agent, home, |path| std::fs::read_to_string(path))?;
+    resume.folder_here()?;
     let endpoint = EndpointId::random();
     let line = chat_line(&resume, program, &endpoint)?;
     convert::stop(

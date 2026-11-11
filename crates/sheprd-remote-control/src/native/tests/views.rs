@@ -55,11 +55,12 @@ async fn a_view_that_does_not_exist_is_refused() {
         ),
         (View::Term { pane: "p1".into() }, "no such terminal"),
     ] {
-        session.send(subscribe(view)).await;
+        session.send(subscribe(view.clone())).await;
         assert_eq!(
             session.next().await,
             ServerMessage::Error {
-                message: expected.into()
+                message: expected.into(),
+                view: Some(view),
             }
         );
     }
@@ -78,12 +79,20 @@ async fn a_socket_follows_at_most_eight_views_but_may_replace_one() {
             .await;
     }
     // Home and the refusal come from different tasks, in either order;
-    // the terminals cannot be read, so they may reload meanwhile.
+    // the terminals cannot be read, so they may say so and reload meanwhile.
     let (mut refused, mut homes) = (0, 0);
     while refused == 0 || homes == 0 {
         match session.next().await {
-            ServerMessage::Error { message } => {
+            ServerMessage::Error { message, .. }
+                if message.starts_with("This terminal could not be read") => {}
+            ServerMessage::Error { message, view } => {
                 assert_eq!(message, "too many views on one connection");
+                assert_eq!(
+                    view,
+                    Some(View::Term {
+                        pane: "term-7".into()
+                    })
+                );
                 refused += 1;
             }
             ServerMessage::Home { .. } => homes += 1,
@@ -97,7 +106,7 @@ async fn a_socket_follows_at_most_eight_views_but_may_replace_one() {
     loop {
         match session.next().await {
             ServerMessage::Home { .. } => break,
-            ServerMessage::Reload { .. } => {}
+            ServerMessage::Reload { .. } | ServerMessage::Error { .. } => {}
             other => panic!("{other:?}"),
         }
     }
@@ -122,12 +131,24 @@ async fn revoking_the_device_ends_the_session_with_bye() {
 }
 
 #[tokio::test]
-async fn a_terminal_that_cannot_be_read_reloads() {
+async fn a_terminal_that_cannot_be_read_says_why_then_reloads() {
     let dir = tempfile::tempdir().unwrap();
     let mut session = Session::start(offline(dir.path(), layout(EndpointId::random())));
     session
         .send(subscribe(View::Term { pane: "p2".into() }))
         .await;
+    // Without it, a phone that never got a screen waits on a spinner while
+    // the reloads go round.
+    match session.next().await {
+        ServerMessage::Error { message, view } => {
+            assert!(
+                message.starts_with("This terminal could not be read: "),
+                "{message}"
+            );
+            assert_eq!(view, Some(View::Term { pane: "p2".into() }));
+        }
+        other => panic!("{other:?}"),
+    }
     assert_eq!(
         session.next().await,
         ServerMessage::Reload {

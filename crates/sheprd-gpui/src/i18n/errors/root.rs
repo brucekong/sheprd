@@ -162,6 +162,7 @@ impl Localize for Error {
                 fl!("error-remote-agent-tools", error = source.localize())
             }
             Self::RemoteControl(error) => error.localize(),
+            Self::RemoteUpdate(error) => error.localize(),
             Self::Request { method, source } => fl!(
                 "error-request",
                 method = method.to_string(),

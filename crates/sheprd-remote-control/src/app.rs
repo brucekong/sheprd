@@ -4,11 +4,13 @@
 //! parts off its UI thread and draws the rest.
 
 pub mod config;
+pub mod edited;
 pub mod enroll;
 mod error;
 pub mod pairing;
 pub mod qr;
 pub mod service;
+pub mod shortcuts;
 pub mod tags;
 
 pub use error::{Error, Result};

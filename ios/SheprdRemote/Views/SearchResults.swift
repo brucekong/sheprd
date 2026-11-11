@@ -15,7 +15,9 @@ struct SearchResults: View {
             needle.isEmpty || $0.chat.title.lowercased().contains(needle) || $0.workspace.label.lowercased().contains(needle)
         }
         let terminals = model.fleet.terminalItems.filter {
-            needle.isEmpty || $0.terminal.label.lowercased().contains(needle) || $0.workspace.label.lowercased().contains(needle)
+            // `title` is an agent's task name, as the Chats list shows it.
+            needle.isEmpty || $0.title.lowercased().contains(needle) || $0.terminal.label.lowercased().contains(needle)
+                || $0.workspace.label.lowercased().contains(needle)
         }
         let workspaces = model.fleet.machines.flatMap { machine in
             (machine.home?.workspaces ?? []).filter {
@@ -45,14 +47,14 @@ struct SearchResults: View {
             if !chats.isEmpty {
                 Section("Chats") {
                     ForEach(chats) { item in
-                        NavigationLink(value: Route.chat(item.key, title: item.chat.title)) { ChatRowLabel(item: item) }
+                        RouteLink(.chat(item.key, title: item.chat.title)) { ChatRowLabel(item: item) }
                     }
                 }
             }
             if !messages.isEmpty {
                 Section("Messages") {
                     ForEach(messages) { hit in
-                        NavigationLink(value: Route.chat(hit.item.key, title: hit.item.chat.title)) {
+                        RouteLink(.chat(hit.item.key, title: hit.item.chat.title)) {
                             MessageHitRow(hit: hit, query: query)
                         }
                     }
@@ -61,8 +63,12 @@ struct SearchResults: View {
             if !terminals.isEmpty {
                 Section("Terminals") {
                     ForEach(terminals) { item in
-                        if let pane = item.terminal.firstPane {
-                            NavigationLink(value: Route.term(PaneKey(device: item.computer.device, pane: pane.pane), title: item.terminal.label)) {
+                        // An agent's own pane, as the Chats list opens it,
+                        // rather than whichever pane of its tab has focus.
+                        if let route = item.route ?? item.terminal.firstPane.map({
+                            Route.term(PaneKey(device: item.computer.device, pane: $0.pane), title: item.terminal.label)
+                        }) {
+                            RouteLink(route) {
                                 Label("\(item.terminal.label) · \(item.computer.name) · \(item.workspace.label)", systemImage: "apple.terminal")
                             }
                         }

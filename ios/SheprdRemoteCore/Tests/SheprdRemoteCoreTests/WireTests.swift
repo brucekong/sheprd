@@ -33,6 +33,7 @@ struct WireTests {
         #expect(home.workspaces[1].pullRequest == nil)
         #expect(workspace.unopenedCommits == nil)
         #expect(home.workspaces[2].unopenedCommits == 3)
+        #expect(home.shortcutsMs == 1_770_000_000_000)
     }
 
     @Test func decodesChatSnapshotAndTheRestEndpoint() throws {
@@ -60,6 +61,7 @@ struct WireTests {
         #expect(try Self.event("chat_connection") == .chatConnection(pane: "p1", connected: false))
         #expect(try Self.event("reload") == .reload(.chat(pane: "p1")))
         #expect(try Self.event("error") == .error("no such chat"))
+        #expect(try Self.event("error_term") == .refused(.term(pane: "p2"), message: "no such terminal"))
         #expect(try Self.event("bye") == .bye(reason: "revoked"))
     }
 

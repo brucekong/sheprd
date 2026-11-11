@@ -10,6 +10,7 @@ pub(in crate::settings_window) mod remote_control;
 mod sidebar;
 mod status_bar;
 mod tabs;
+pub(in crate::settings_window) mod text_shortcuts;
 mod theme;
 mod window;
 

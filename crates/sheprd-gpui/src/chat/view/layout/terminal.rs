@@ -163,6 +163,7 @@ impl ChatLayout for Terminal {
                             .items_center()
                             .gap(px(6.))
                             .child(parts.attach)
+                            .child(parts.shortcuts)
                             .children(parts.settings),
                     )
                     .child(

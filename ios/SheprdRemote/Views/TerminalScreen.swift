@@ -111,7 +111,7 @@ struct TerminalScreen: View {
                 // down; with a selection, it clears it first.
                 .onTapGesture { if selection != nil { selection = nil } else { keyboard.toggle() } }
             } else {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                TermWaitingView(store: store)
             }
         }
         // Measured here, inside the key rows and the bars, so the rows

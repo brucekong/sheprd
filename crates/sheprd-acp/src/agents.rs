@@ -9,15 +9,20 @@ use std::{
 pub(crate) use sheprd_chat_protocol::Agent;
 
 /// Where agents install themselves besides `PATH`, relative to the home
-/// folder, searched after it: a noninteractive SSH shell, or an app started
-/// from the desktop, often runs with a `PATH` that leaves them out.
-const USER_DIRS: [&str; 6] = [
+/// folder, searched after it: a noninteractive SSH shell, an app started from
+/// the desktop, or a user service such as the remote control daemon often
+/// runs with a `PATH` that leaves them out. The mise and asdf shim folders
+/// hold agents installed through those version managers (`mise use -g
+/// opencode`); a shim finds its tool without the user's shell setup.
+const USER_DIRS: [&str; 8] = [
     ".local/bin",
     ".cargo/bin",
     ".bun/bin",
     ".npm-global/bin",
     ".opencode/bin",
     ".volta/bin",
+    ".local/share/mise/shims",
+    ".asdf/shims",
 ];
 /// System folders package managers install into, searched last.
 #[cfg(unix)]

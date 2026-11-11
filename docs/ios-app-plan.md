@@ -265,9 +265,17 @@ The daemon sends:
 {"type": "chat_connection", "pane": "p1", "connected": false}
 {"type": "term_screen", "pane": "p2", "columns": 120, "rows": [[{"text": "PASS", "fg": "green", "bold": true}]]}
 {"type": "reload", "view": "chat", "pane": "p1"}
-{"type": "error", "message": "no such chat"}
+{"type": "error", "message": "no such chat", "view": "chat", "pane": "p1"}
 {"type": "bye", "reason": "revoked"}
 ```
+
+- `error` names the view it is about (`view`, and `pane` for a chat or a
+  terminal) when there is one: a refused subscription or scroll, or a
+  followed terminal that could not be read three times in a row, which
+  sends `error` "This terminal could not be read: …" before its `reload`.
+  The phone shows it on that view's screen instead of waiting for it.
+  An `error` without `view` is about the socket itself; older daemons
+  never send `view`. The daemon logs every refusal and failed read.
 
 - A subscription answers at once with the current state: `home`; for a
   chat, `chat_resumed` when `since` equals the chat's cursor, otherwise

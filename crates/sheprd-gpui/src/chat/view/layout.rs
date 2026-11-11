@@ -129,6 +129,8 @@ pub(super) struct ComposerParts {
     /// The draft's earlier lines and the editable one.
     pub(super) draft: Div,
     pub(super) attach: Stateful<Div>,
+    /// Opens the text shortcuts' popover, beside `attach`.
+    pub(super) shortcuts: Stateful<Div>,
     /// The session's settings and the auto-accept switch.
     pub(super) settings: Vec<AnyElement>,
     /// Context use, once the agent reports them.

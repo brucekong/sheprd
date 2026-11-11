@@ -73,6 +73,17 @@ fn main() -> Result<(), BuildError> {
     locales::generate(&manifest, &out).map_err(BuildError::Locales)?;
     let identity = build_identity::detect(&manifest);
     windows_resource::embed(&manifest, identity.worktree).map_err(BuildError::WindowsResource)?;
+    // GPUI's nested render/layout calls run on the main thread. The Windows
+    // linker's 1 MiB default overflows while drawing the native sidebar and
+    // dialogs in debug builds. Reserve 8 MiB, committed on demand; the
+    // launcher shares the resource module but does not run this UI.
+    if std::env::var_os("CARGO_CFG_TARGET_OS").is_some_and(|os| os == "windows") {
+        if std::env::var_os("CARGO_CFG_TARGET_ENV").is_some_and(|env| env == "msvc") {
+            println!("cargo:rustc-link-arg-bins=/STACK:8388608");
+        } else {
+            println!("cargo:rustc-link-arg-bins=-Wl,--stack,8388608");
+        }
+    }
     for path in &identity.watched {
         println!("cargo:rerun-if-changed={}", path.display());
     }

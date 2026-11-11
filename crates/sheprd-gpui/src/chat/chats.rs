@@ -90,6 +90,8 @@ pub(crate) enum Menu {
     Setting(String),
     /// Every setting the header has no button for.
     Settings,
+    /// The person's text shortcuts, from the composer's button.
+    Shortcuts,
 }
 
 /// What takes the user's typing in a chat.
@@ -162,6 +164,9 @@ pub(crate) struct ChatPane {
     /// the composer changes, since typing does not redraw the window.
     pub(crate) send: SendButton,
     pub(crate) session: Session,
+    /// How much of the text shortcuts' popover shows, as it opens and
+    /// closes with [`Menu::Shortcuts`].
+    pub(crate) shortcuts: crate::motion::Toggle,
     /// Whether the steps running now show in full under the working row.
     pub(crate) steps: crate::motion::Toggle,
     pub(crate) target: Target,
@@ -269,6 +274,7 @@ impl ChatPane {
             selection: Default::default(),
             send: SendButton::Off,
             session: Session::default(),
+            shortcuts: Default::default(),
             steps: Default::default(),
             target,
             terminal_size: Default::default(),

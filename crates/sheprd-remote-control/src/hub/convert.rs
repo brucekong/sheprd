@@ -134,7 +134,9 @@ impl Hub {
             self.call(ApiMethod::PaneProcessInfo, params.clone())
                 .await?,
         )?;
-        let line = convert::resume(&found.pane, &info.process_info, agent)?.local_line(&program)?;
+        let resume = convert::resume(&found.pane, &info.process_info, agent)?;
+        resume.folder_here()?;
+        let line = resume.local_line(&program)?;
         let (hub, owned, cancelled) = (self.clone(), pane.to_owned(), claim.cancelled.clone());
         let runtime = tokio::runtime::Handle::current();
         tokio::task::spawn_blocking(move || hub.stop_agent(&runtime, &owned, agent, &cancelled))

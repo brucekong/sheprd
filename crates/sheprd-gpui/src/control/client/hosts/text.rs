@@ -89,6 +89,23 @@ pub(super) fn comments(comments: &[CommentInfo]) -> String {
         .join("\n")
 }
 
+pub(super) fn update_asked(host: &str, latest: &str) -> String {
+    if latest == "newer" {
+        format!("Asked to update Sheprd on {host}; it updates only once the user confirms")
+    } else {
+        format!(
+            "Asked to update Sheprd on {host} to {latest}; it updates only once the user confirms"
+        )
+    }
+}
+
+pub(super) fn no_update(host: &str, note: Option<&str>) -> String {
+    match note {
+        Some(note) => format!("Nothing to update on {host}: {note}"),
+        None => format!("Sheprd on {host} offers no newer release"),
+    }
+}
+
 pub(super) fn hosts(hosts: &[HostInfo]) -> String {
     if hosts.is_empty() {
         return "The window has no hosts".into();
@@ -97,7 +114,7 @@ pub(super) fn hosts(hosts: &[HostInfo]) -> String {
         .iter()
         .map(|host| {
             format!(
-                "{} {} ({}): {}{}{}",
+                "{} {} ({}): {}{}{}{}",
                 if host.selected { ">" } else { " " },
                 host.label,
                 host.id,
@@ -107,6 +124,10 @@ pub(super) fn hosts(hosts: &[HostInfo]) -> String {
                     String::new()
                 } else {
                     format!(" [{}]", host.tags.join(", "))
+                },
+                match &host.update {
+                    Some(version) => format!(", Sheprd {version} available"),
+                    None => String::new(),
                 }
             )
         })

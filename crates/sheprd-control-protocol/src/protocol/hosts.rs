@@ -31,6 +31,13 @@ pub enum HostOp {
         id: String,
         tags: Vec<String>,
     },
+    /// Open the confirmation that updates Sheprd on `host` (an endpoint
+    /// ID or label; absent, the caller's host) to the release it offers.
+    /// Only the dialog opens: the user confirms there.
+    Update {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        host: Option<String>,
+    },
     /// The pull request of the caller's workspace's branch.
     Pr,
     /// Its review comments, loaded on request.
@@ -322,6 +329,14 @@ pub enum Reply {
     Security {
         repositories: Vec<SecurityRepoInfo>,
         /// Why the listing may be empty or cut short.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        note: Option<String>,
+    },
+    /// `host update`: the release the confirmation now open offers, or
+    /// none, and then no dialog opened and `note` says why.
+    Update {
+        host: String,
+        latest: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         note: Option<String>,
     },

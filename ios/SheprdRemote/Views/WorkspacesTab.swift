@@ -2,9 +2,11 @@ import SheprdRemoteCore
 import SwiftUI
 
 /// One workspace of one computer, which the Workspaces tab opens.
-struct WorkspaceKey: Codable, Hashable {
+struct WorkspaceKey: Codable, Hashable, Identifiable {
     let device: String
     let workspace: String
+
+    var id: Self { self }
 }
 
 extension EnvironmentValues {
@@ -26,7 +28,9 @@ extension EnvironmentValues {
 /// index on its edge, as Contacts has.
 struct WorkspacesTab: View {
     @Environment(AppModel.self) private var model
-    @State private var query = ""
+    /// Shared with the iPad sidebar's Chats tab, so one search follows
+    /// the person across both.
+    @Binding var query: String
     /// The computer whose page is open from its header menu.
     @State private var details: String?
     @State private var forgetting: Computer?

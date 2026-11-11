@@ -193,16 +193,25 @@ impl SheprdWindow {
                     matches!(&option.kind, OptionKind::Select { choices, .. }
                         if choices.len() > SEARCHABLE)
                 }),
+            Menu::Shortcuts => true,
             Menu::Modes | Menu::Settings => false,
         };
+        let shortcuts = opening && menu == Menu::Shortcuts;
+        // The shortcuts' popover keeps its field while it fades out.
+        let keep_search = !opening && menu == Menu::Shortcuts;
         pane.menu = opening.then_some(menu);
+        pane.shortcuts.set(shortcuts, crate::motion::now(), false);
         let search = (opening && long).then(|| {
             let input = cx.new(|cx| {
                 let mut input = SearchInput::new(cx);
                 // The menu draws the field's frame.
                 input.set_frameless(cx);
                 input.set_appearance(font, theme, cx);
-                input.set_placeholder_with(|| fl!("chat-settings-search"), cx);
+                if shortcuts {
+                    input.set_placeholder_with(|| fl!("chat-shortcuts-search"), cx);
+                } else {
+                    input.set_placeholder_with(|| fl!("chat-settings-search"), cx);
+                }
                 input
             });
             let redraw = cx.observe(&input, |this, _, cx| this.redraw_terminal(cx));
@@ -211,8 +220,10 @@ impl SheprdWindow {
         let Some(pane) = self.chats.pane_mut(pane_id) else {
             return;
         };
-        pane.menu_search = search;
-        let focus = match &pane.menu_search {
+        if !keep_search {
+            pane.menu_search = search;
+        }
+        let focus = match pane.menu_search.as_ref().filter(|_| pane.menu.is_some()) {
             Some((input, _)) => Some(input.read(cx).focus.clone()),
             None => pane
                 .composer
@@ -579,6 +590,8 @@ impl SheprdWindow {
         };
         let mut rows: Vec<AnyElement> = Vec::new();
         match menu {
+            // Drawn by `render_chat_shortcuts`, which animates it.
+            Menu::Shortcuts => return div().into_any_element(),
             Menu::Modes => {
                 let Some(modes) = &transcript.modes else {
                     return div().into_any_element();

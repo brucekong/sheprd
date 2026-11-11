@@ -1,0 +1,20 @@
+settings-text-shortcuts-section = Text Shortcuts
+settings-text-shortcuts-lead = Prompts you send often. In a chat, type / or use the shortcuts button beside +: one sends at once when the message is empty, or is added to what you are writing. Each computer keeps them for every device, so your phone and every connected computer share one list.
+settings-text-shortcuts-add = Add a shortcut
+settings-text-shortcuts-add-description = Text you send often, such as asking the agent to carry on.
+settings-text-shortcuts-add-button = Add
+settings-text-shortcuts-full = A list holds at most {$count} shortcuts.
+settings-text-shortcuts-list = Shortcuts
+settings-text-shortcuts-empty = No shortcuts yet.
+settings-text-shortcuts-title = Title
+settings-text-shortcuts-title-placeholder = Shown in the menu; blank shows the start of the text
+settings-text-shortcuts-text = Text
+settings-text-shortcuts-text-placeholder = Sent to the agent
+# $count is how many characters the text has; $limit is the most a shortcut keeps.
+settings-text-shortcuts-length = { $count } of { $limit } characters
+settings-text-shortcuts-up = Up
+settings-text-shortcuts-down = Down
+settings-text-shortcuts-edit = Edit
+settings-text-shortcuts-delete = Delete
+settings-text-shortcuts-cancel = Cancel
+settings-text-shortcuts-save = Save

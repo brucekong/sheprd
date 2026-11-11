@@ -11,6 +11,7 @@ mod mute;
 mod ports;
 mod pr;
 mod security;
+mod update;
 
 #[cfg(test)]
 mod tests;
@@ -48,6 +49,9 @@ pub(super) fn serve(
             select(view, &id, |view, id| view.select_endpoint(id, cx))
         }),
         HostOp::Tag { id, tags } => in_window(caller, cx, |view, _, cx| tag(view, &id, tags, cx)),
+        HostOp::Update { host } => in_window(caller, cx, |view, window, cx| {
+            update::ask(view, caller, host.as_deref(), window, cx)
+        }),
         HostOp::Pr => in_window(caller, cx, |view, _, _| pr::status(view, caller)),
         HostOp::PrQuota => in_window(caller, cx, |view, _, _| pr::quota(view)),
         HostOp::PrComments => return pr::comments(call.caller, incoming, watches, cx),

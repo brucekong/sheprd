@@ -63,7 +63,7 @@ async fn a_phone_edits_the_tags_and_the_latest_edit_stands() {
 #[test]
 fn offers_at_once_leave_the_latest_in_memory_and_on_disk() {
     let dir = tempfile::tempdir().unwrap();
-    let tags = Arc::new(Tags::load(dir.path()));
+    let tags = Arc::new(Tags::load(crate::app::tags::file(dir.path())));
     let workers: Vec<_> = (1..=32_u64)
         .map(|edit| {
             let tags = tags.clone();
@@ -87,7 +87,7 @@ fn offers_at_once_leave_the_latest_in_memory_and_on_disk() {
 #[test]
 fn an_edit_saved_while_the_daemon_started_counts() {
     let dir = tempfile::tempdir().unwrap();
-    let tags = Tags::load(dir.path());
+    let tags = Tags::load(crate::app::tags::file(dir.path()));
     // A `tags --offer` found no socket yet, after the daemon read the file.
     let file = crate::app::tags::file(dir.path());
     let newer = ComputerTags::new(["work"], 2_000);

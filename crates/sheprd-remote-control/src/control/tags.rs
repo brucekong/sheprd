@@ -7,6 +7,7 @@
 //! answers with the set that stands: the latest edit wins, whole, because
 //! tags are low stakes and a merge could never remove one.
 
+use super::edited::Edited;
 use serde::{Deserialize, Serialize};
 
 /// The most tags one computer keeps.
@@ -40,19 +41,15 @@ impl ComputerTags {
             updated_ms,
         }
     }
+}
 
-    /// What stands once `offer` meets these tags at `now_ms`. A clock running
-    /// ahead cannot make an edit outlast every later one, so an offer counts
-    /// as made by `now_ms` at the latest. On a tie the stored set stays, so
-    /// offering the same tags twice changes nothing.
-    #[must_use]
-    pub fn merged(self, offer: Self, now_ms: u64) -> Self {
-        let updated_ms = offer.updated_ms.min(now_ms);
-        if updated_ms > self.updated_ms {
-            Self::new(offer.tags, updated_ms)
-        } else {
-            self
-        }
+impl Edited for ComputerTags {
+    fn updated_ms(&self) -> u64 {
+        self.updated_ms
+    }
+
+    fn bounded(self, updated_ms: u64) -> Self {
+        Self::new(self.tags, updated_ms)
     }
 }
 

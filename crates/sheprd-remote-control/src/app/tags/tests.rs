@@ -1,4 +1,5 @@
 use super::*;
+use std::fs;
 
 #[test]
 fn saved_tags_load_back_bounded() {

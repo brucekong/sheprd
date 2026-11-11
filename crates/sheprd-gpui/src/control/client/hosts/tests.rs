@@ -78,6 +78,7 @@ fn comments_and_hosts_read_one_per_entry() {
             selected: true,
             muted: false,
             tags: Vec::new(),
+            update: None,
         },
         HostInfo {
             id: "ssh:devbox".into(),
@@ -86,11 +87,12 @@ fn comments_and_hosts_read_one_per_entry() {
             selected: false,
             muted: true,
             tags: vec!["work".into(), "lab".into()],
+            update: Some("20261109.1".into()),
         },
     ];
     assert_eq!(
         text::hosts(&hosts),
-        "> Local (local): online\n  Devbox (ssh:devbox): offline, muted [work, lab]"
+        "> Local (local): online\n  Devbox (ssh:devbox): offline, muted [work, lab], Sheprd 20261109.1 available"
     );
 }
 

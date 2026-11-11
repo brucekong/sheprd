@@ -348,6 +348,20 @@ copy buttons remain available for complete retained code or original records.
 Image pixels, embedded webviews and widget controls are separate surfaces, not
 selectable conversation text.
 
+Text shortcuts are prompts you send often, such as asking the agent to carry
+on. Type `/` in the composer to see them first, above the agent's own slash
+commands, matched against what follows the slash by label or text; **Tab** or a
+click takes the selected one. The shortcuts button beside **+** opens them in a
+popover with a search field, where **Enter** takes the first match. Either way a
+shortcut sends at once when nothing else is drafted, as on the phone, and
+otherwise joins the end of the draft. Add, edit, reorder and delete them in
+Settings > Text Shortcuts, or **Edit Shortcuts…** at the foot of the popover;
+`sheprd chat shortcuts` lists them. They are one list: each computer's
+`sheprd-remote-control` keeps a copy for its phones, and Sheprd reads this
+computer's and every connected SSH host's that has the program, keeps the
+latest edit, and offers it to the others, so an edit made anywhere reaches all
+of them. A host without the program is skipped.
+
 ACP chats retain their native composer, permissions, tools, plans, context
 information and file attachments. Tool and thinking cards start collapsed and
 expand to show retained text and diffs.

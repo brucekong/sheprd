@@ -20,6 +20,7 @@ mod rich;
 pub(crate) mod running;
 pub(crate) mod selection;
 mod settings;
+mod shortcuts;
 mod summary;
 mod text;
 pub(super) mod viewer;
@@ -604,6 +605,7 @@ impl SheprdWindow {
         {
             pane.menu = None;
             pane.menu_search = None;
+            pane.shortcuts.set(false, crate::motion::now(), false);
             cx.notify();
         }
     }

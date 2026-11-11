@@ -79,6 +79,9 @@ impl Localize for sheprd_client::herdr::convert::Error {
             // keep-sorted start
             Self::AlreadyChat => fl!("error-chat-convert-already-chat"),
             Self::Busy(agent) => fl!("error-chat-convert-busy", agent = agent.display_name()),
+            Self::FolderGone(folder) => {
+                fl!("error-chat-convert-folder-gone", folder = folder.as_str())
+            }
             Self::Line => fl!("error-chat-convert-line"),
             Self::Moved => fl!("error-chat-convert-moved"),
             Self::NoAgent => fl!("error-chat-convert-no-agent"),

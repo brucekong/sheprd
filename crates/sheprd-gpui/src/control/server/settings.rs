@@ -61,6 +61,9 @@ pub(super) fn serve(
         })),
         SettingsOp::Update => incoming.respond(services::update(cx)),
         SettingsOp::CheckUpdate => services::check_update(wait, incoming, watches, cx),
+        SettingsOp::InstallUpdate { confirmed } => {
+            incoming.respond(services::install_update(&caller, confirmed, cx));
+        }
         SettingsOp::Integrations => services::integrations(&caller, wait, incoming, watches, cx),
         SettingsOp::Language => incoming.respond(language(cx)),
     }

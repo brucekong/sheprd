@@ -103,3 +103,5 @@ fn a_caller_in_a_core_terminal_converts_its_own_terminal() {
     // Neither: the focused pane is the window's to pick.
     assert_eq!(callers_pane(&Caller::default()), None);
 }
+
+mod shortcuts;

@@ -90,6 +90,9 @@ public enum LiveEvent: Decodable, Hashable, Sendable {
     /// The phone lagged or the view went away: fetch it again.
     case reload(LiveView)
     case error(String)
+    /// The computer refused a view or could not go on with it: the screen
+    /// showing that view says why instead of waiting for it.
+    case refused(LiveView, message: String)
     /// The session expired (`expired`) or the device was revoked (`revoked`).
     case bye(reason: String)
 
@@ -114,16 +117,27 @@ public enum LiveEvent: Decodable, Hashable, Sendable {
             self = .chatConnection(pane: try c.decode(String.self, forKey: .pane), connected: try c.decode(Bool.self, forKey: .connected))
         case "term_screen": self = .termScreen(try TermScreen(from: decoder))
         case "reload":
-            let pane = try c.decodeIfPresent(String.self, forKey: .pane)
-            switch (try c.decode(String.self, forKey: .view), pane) {
-            case let ("chat", pane?): self = .reload(.chat(pane: pane))
-            case let ("term", pane?): self = .reload(.term(pane: pane))
-            default: self = .reload(.home)
+            self = .reload(Self.view(try c.decode(String.self, forKey: .view), pane: try c.decodeIfPresent(String.self, forKey: .pane)))
+        case "error":
+            let message = try c.decode(String.self, forKey: .message)
+            // Older computers name no view.
+            if let view = try c.decodeIfPresent(String.self, forKey: .view) {
+                self = .refused(Self.view(view, pane: try c.decodeIfPresent(String.self, forKey: .pane)), message: message)
+            } else {
+                self = .error(message)
             }
-        case "error": self = .error(try c.decode(String.self, forKey: .message))
         case "bye": self = .bye(reason: try c.decode(String.self, forKey: .reason))
         case let other:
             throw DecodingError.dataCorruptedError(forKey: .type, in: c, debugDescription: "unknown live message \(other)")
+        }
+    }
+
+    /// The view a message names; one without its pane is home.
+    private static func view(_ name: String, pane: String?) -> LiveView {
+        switch (name, pane) {
+        case let ("chat", pane?): .chat(pane: pane)
+        case let ("term", pane?): .term(pane: pane)
+        default: .home
         }
     }
 }

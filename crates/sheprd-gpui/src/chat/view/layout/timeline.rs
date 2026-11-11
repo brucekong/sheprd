@@ -104,6 +104,7 @@ impl ChatLayout for Timeline {
                     .px(px(10.))
                     .pb(px(10.))
                     .child(parts.attach)
+                    .child(parts.shortcuts)
                     .children(parts.settings)
                     .child(div().flex_1())
                     .children(parts.usage)

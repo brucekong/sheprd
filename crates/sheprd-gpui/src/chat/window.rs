@@ -13,7 +13,7 @@ use crate::{
     search_input::SearchInput,
 };
 use gpui::{prelude::*, *};
-use sheprd_chat_protocol::{Attachment, Command, MAX_ATTACHMENTS, MAX_PROMPT_SIZE, Status, assist};
+use sheprd_chat_protocol::{Attachment, Command, MAX_ATTACHMENTS, MAX_PROMPT_SIZE, Status};
 use std::time::Instant;
 
 pub(super) mod visuals;
@@ -130,6 +130,7 @@ impl SheprdWindow {
         self.prepare_chat_visuals(window, cx);
         let font = self.chat_font();
         let theme = self.theme.clone();
+        let shortcuts = crate::text_shortcuts::Store::current(cx);
         for pane in self.chats.panes_mut() {
             if !pane.available() {
                 continue;
@@ -170,14 +171,22 @@ impl SheprdWindow {
                 pane.send = send;
                 changed = true;
             }
-            let found = assist::completions(pane.session.transcript(), &text);
+            let found = super::shortcuts::completions(
+                &shortcuts.shortcuts,
+                pane.session.transcript(),
+                &text,
+            );
             if pane.completion >= found.len() {
                 pane.completion = 0;
             }
-            let ghost = found
-                .get(pane.completion)
-                .and_then(|command| command.name.strip_prefix(text.get(1..).unwrap_or("")))
-                .map(str::to_owned);
+            // Only a command's name completes the text typed.
+            let ghost = match found.get(pane.completion) {
+                Some(super::shortcuts::Completion::Command(command)) => command
+                    .name
+                    .strip_prefix(text.get(1..).unwrap_or(""))
+                    .map(str::to_owned),
+                _ => None,
+            };
             composer.update(cx, |input, cx| {
                 input.set_completion(ghost, cx);
                 input.set_appearance(font.clone(), theme.clone(), cx);
@@ -349,6 +358,10 @@ impl SheprdWindow {
             return;
         };
         match event.keystroke.key.as_str() {
+            "enter" if menu == chats::Menu::Shortcuts => {
+                let query = search.read(cx).text().to_owned();
+                self.pick_first_chat_shortcut(pane_id, &query, window, cx);
+            }
             "enter" => {
                 let query = search.read(cx).text().to_owned();
                 let picked = match &menu {
@@ -517,18 +530,25 @@ impl SheprdWindow {
             return;
         }
         let text = input.read(cx).text().to_owned();
-        let found = assist::completions(pane.session.transcript(), &text).len();
+        let shortcuts = crate::text_shortcuts::Store::current(cx);
+        let completions =
+            super::shortcuts::completions(&shortcuts.shortcuts, pane.session.transcript(), &text);
+        let found = completions.len();
+        let chosen = completions
+            .get(pane.completion)
+            .map(super::shortcuts::Completion::chosen);
         let key = event.keystroke.key.as_str();
         match key {
-            "tab" if found > 0 => {
-                let Some(name) = assist::completions(pane.session.transcript(), &text)
-                    .get(pane.completion)
-                    .map(|command| command.name.clone())
-                else {
-                    return;
-                };
-                self.complete_chat_command(pane_id, &name, window, cx);
-            }
+            "tab" if found > 0 => match chosen {
+                Some(super::shortcuts::Chosen::Shortcut(text)) => {
+                    let picked = super::shortcuts::Picked::Slash;
+                    self.use_chat_shortcut(pane_id, &text, picked, window, cx);
+                }
+                Some(super::shortcuts::Chosen::Command(name)) => {
+                    self.complete_chat_command(pane_id, &name, window, cx);
+                }
+                None => return,
+            },
             "up" | "down" if found > 0 => {
                 pane.completion = if key == "up" {
                     pane.completion.saturating_sub(1)
@@ -830,7 +850,7 @@ impl SheprdWindow {
         cx.notify();
     }
 
-    fn submit_chat_prompt(
+    pub(super) fn submit_chat_prompt(
         &mut self,
         pane_id: &str,
         input: &Entity<MultilineInput>,

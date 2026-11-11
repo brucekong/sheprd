@@ -152,6 +152,7 @@ impl ChatLayout for OpenCode {
                     .items_center()
                     .gap(px(6.))
                     .child(parts.attach)
+                    .child(parts.shortcuts)
                     .children(parts.settings),
             )
             .child(parts.send);

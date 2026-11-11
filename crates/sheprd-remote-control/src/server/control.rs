@@ -213,6 +213,18 @@ pub(crate) fn answer(state: &State, stop: &watch::Sender<bool>, request: Request
                 },
             };
         }
+        Request::Shortcuts { offer } => {
+            let Some(offer) = offer else {
+                return Response::Shortcuts(state.shortcuts.current());
+            };
+            return match state.shortcuts.offer(offer, now) {
+                Ok(shortcuts) => Response::Shortcuts(shortcuts),
+                Err(error) => Response::Error {
+                    code: ErrorCode::Unsaved,
+                    message: error.to_string(),
+                },
+            };
+        }
         Request::Indicators { set } => {
             return match state.look.set(crate::web::Indicators::from_config(&set)) {
                 Ok(()) => Response::Done,

@@ -12,6 +12,7 @@ fn home(layout: &Layout) -> Home {
         load: None,
         summaries: HashMap::new(),
         pull_requests: &Default::default(),
+        shortcuts_ms: 0,
         tags: Default::default(),
         version: "20261109.1",
         waiting: 0,

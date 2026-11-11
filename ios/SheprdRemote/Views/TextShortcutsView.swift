@@ -24,7 +24,7 @@ struct TextShortcutsView: View {
                 .onDelete { store.delete(at: $0) }
                 .onMove { store.move(from: $0, to: $1) }
             } footer: {
-                Text("Shortcuts appear under + in a chat. One sends at once when the message is empty, or is added to what you are writing.")
+                Text("Shortcuts appear under + in a chat. One sends at once when the message is empty, or is added to what you are writing. Your computers keep the same list, so Sheprd and your other devices share it.")
             }
         }
         .overlay {
@@ -38,6 +38,7 @@ struct TextShortcutsView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Add", systemImage: "plus") { editing = TextShortcut(title: "", text: "") }
+                    .disabled(store.isFull)
             }
             if !store.shortcuts.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) { EditButton() }
@@ -62,9 +63,17 @@ private struct ShortcutEditor: View {
                 Section("Title") {
                     TextField("Shown in the menu", text: $shortcut.title)
                 }
-                Section("Text") {
+                Section {
                     TextField("Sent to the agent", text: $shortcut.text, axis: .vertical)
                         .lineLimit(3...10)
+                } header: {
+                    Text("Text")
+                } footer: {
+                    // Shown near the limit, and why Save is off past it.
+                    if shortcut.textLength > TextShortcut.maxText * 9 / 10 {
+                        Text("\(shortcut.textLength) of \(TextShortcut.maxText) characters")
+                            .foregroundStyle(shortcut.isTooLong ? .red : .secondary)
+                    }
                 }
             }
             .navigationTitle(isNew ? "New Shortcut" : "Edit Shortcut")

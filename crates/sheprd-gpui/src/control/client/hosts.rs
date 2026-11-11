@@ -72,12 +72,22 @@ pub(super) fn host(command: HostCommand, context: &Context) -> crate::Result<Out
         HostCommand::Select(id) => HostOp::Select { id },
         HostCommand::Mute { host, muted } => HostOp::Mute { host, muted },
         HostCommand::Tag { id, tags } => HostOp::Tag { id, tags },
+        HostCommand::Update(host) => HostOp::Update { host },
     };
     match context.call(Request::Host, op)? {
         Response::Done { message } => Ok(Output::message(message)),
         Response::Host {
             reply: Reply::Hosts { hosts },
         } => Output::data(text::hosts(&hosts), &hosts),
+        Response::Host {
+            reply: Reply::Update { host, latest, note },
+        } => {
+            let json = serde_json::json!({ "host": host, "latest": latest, "note": note });
+            match latest {
+                Some(latest) => Output::data(text::update_asked(&host, &latest), &json),
+                None => Ok(Output::data(text::no_update(&host, note.as_deref()), &json)?.nothing()),
+            }
+        }
         response => Err(unexpected(response)),
     }
 }

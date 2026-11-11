@@ -15,6 +15,16 @@ enum Route: Codable, Hashable {
     case workspace(WorkspaceKey)
     case changes(WorkspaceKey)
 
+    /// Whether this opens the same tab as `other`, whatever either's title:
+    /// a renamed chat, or a tab opened before its name arrived, is still it.
+    func opensSameTab(as other: Route) -> Bool {
+        switch (self, other) {
+        case let (.chat(one, _), .chat(two, _)), let (.term(one, _), .term(two, _)): one == two
+        case let (.workspace(one), .workspace(two)), let (.changes(one), .changes(two)): one == two
+        default: false
+        }
+    }
+
     /// Whether this shows the terminal of `pane`, under whatever title.
     func showsTerminal(_ pane: PaneKey) -> Bool {
         if case let .term(key, _) = self { key == pane } else { false }
@@ -254,6 +264,18 @@ final class AppModel {
         fleet.onOnline = { [weak self] in self?.hostLinks.check($0) }
         fleet.onTags = { [weak self] in self?.tagsArrived($0, for: $1) }
         fleet.onTagsAnswer = { [weak self] in self?.tagsAnswered($0, for: $1) }
+        shortcuts.perform = { [weak fleet] actions in
+            for action in actions {
+                switch action {
+                case let .fetch(device): fleet?.fetchShortcuts(from: device)
+                case let .offer(copy, device): fleet?.offerShortcuts(copy, to: device)
+                }
+            }
+        }
+        fleet.onShortcutsReported = { [shortcuts] in shortcuts.reported($0, by: $1) }
+        fleet.onShortcuts = { [shortcuts] in shortcuts.received($0, offered: $1, from: $2) }
+        fleet.onShortcutsFetchFailed = { [shortcuts] in shortcuts.fetchFailed($0) }
+        fleet.onOffline = { [shortcuts] in shortcuts.offline($0) }
         fleet.onSummary = { [spotlight] in
             let summary = WidgetSummary.load()
             spotlight.update(summary)
@@ -335,6 +357,7 @@ final class AppModel {
         try? NotifyKey.forget(computer.fingerprint)
         hostLinks.forget(computer)
         collapsed.computers.forget(computer.device)
+        shortcuts.offline(computer.device)
         Task { await sessions.forget(computer) }
     }
 

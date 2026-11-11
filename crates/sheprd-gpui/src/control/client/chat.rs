@@ -4,7 +4,7 @@ use crate::{
     cli::control::ChatCommand,
     control::protocol::{
         Request, Response,
-        chat::{ChatInfo, ChatOp, Reply},
+        chat::{ChatInfo, ChatOp, Reply, ShortcutInfo},
     },
 };
 use std::fmt::Write as _;
@@ -47,6 +47,7 @@ pub(super) fn chat(command: ChatCommand, context: &Context) -> crate::Result<Out
         },
         ChatCommand::Convert { pane } => ChatOp::Convert { pane },
         ChatCommand::View { switch, pane } => ChatOp::View { switch, pane },
+        ChatCommand::Shortcuts => ChatOp::Shortcuts,
     };
     match context.call(Request::Chat, op)? {
         Response::Chat {
@@ -81,6 +82,39 @@ pub(super) fn chat(command: ChatCommand, context: &Context) -> crate::Result<Out
             format!("Moving {agent} in {pane_id} into a chat"),
             &serde_json::json!({ "agent": agent, "pane_id": pane_id, "converting": true }),
         ),
+        Response::Chat {
+            reply:
+                Reply::Shortcuts {
+                    shortcuts,
+                    updated_ms,
+                    complete,
+                },
+        } => {
+            let json = serde_json::json!({
+                "shortcuts": shortcuts,
+                "updated_ms": updated_ms,
+                "complete": complete,
+            });
+            if shortcuts.is_empty() {
+                return Ok(Output::data("No text shortcuts", &json)?.nothing());
+            }
+            Output::data(describe_shortcuts(&shortcuts, complete), &json)
+        }
         response => Err(unexpected(response)),
     }
+}
+
+/// The shortcuts as text: each label, then its text indented beneath it.
+pub(super) fn describe_shortcuts(shortcuts: &[ShortcutInfo], complete: bool) -> String {
+    let mut text = String::new();
+    for shortcut in shortcuts {
+        let _ = writeln!(text, "{}", shortcut.label);
+        for line in shortcut.text.lines() {
+            let _ = writeln!(text, "    {line}");
+        }
+    }
+    if !complete {
+        text.push_str("(more shortcuts than one answer holds)\n");
+    }
+    text.trim_end().to_owned()
 }

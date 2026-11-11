@@ -155,6 +155,7 @@ impl ChatLayout for IA {
                     .items_center()
                     .gap(px(8.))
                     .child(parts.attach)
+                    .child(parts.shortcuts)
                     .children(parts.settings)
                     .child(div().flex_1())
                     .children(parts.usage)

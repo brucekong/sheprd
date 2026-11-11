@@ -242,7 +242,10 @@ pub const FAMILIES: &[(&str, &str)] = &[
     ),
     ("commands", "List the commands `run` accepts"),
     ("logs", "Print or locate the app's log"),
-    ("update", "Check for an app update; never installs"),
+    (
+        "update",
+        "Check for an app update, or show the install dialog",
+    ),
     ("diagnostics", "Write a redacted bundle for a bug report"),
     ("integrations", "Agent integrations and the agent skill"),
 ];

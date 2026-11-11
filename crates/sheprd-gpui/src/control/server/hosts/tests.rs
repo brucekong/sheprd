@@ -14,6 +14,7 @@ mod ports;
 mod pr;
 mod quota;
 mod quota_accounts;
+mod remote_update;
 mod security;
 mod security_open;
 mod strict;

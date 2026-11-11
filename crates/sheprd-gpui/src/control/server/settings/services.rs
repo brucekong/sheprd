@@ -1,5 +1,7 @@
 //! `update` and `integrations`: what the app's updater and the selected
-//! host report. Nothing here downloads, installs, or runs an installer.
+//! host report. Nothing here downloads, installs, or runs an installer, save
+//! `update install --confirmed`, which hands the update to the same steps a
+//! paired phone's request takes (`crate::remote::Supervisor`).
 use super::{
     super::{main_windows, window_for},
     Watches, socket,
@@ -42,6 +44,7 @@ fn reply(updater: &Updater) -> Response {
         reply: Reply::Update {
             state: state.to_owned(),
             latest: version.or(updater.latest_version()).map(str::to_owned),
+            current: Some(crate::APP_VERSION.to_owned()),
             detail,
         },
     }
@@ -70,6 +73,59 @@ pub(super) fn update(cx: &mut App) -> Response {
     let Some(handle) = updater_window(cx) else {
         return no_window();
     };
+    handle
+        .read_with(cx, |view, _| reply(&view.updater))
+        .unwrap_or_else(|_| no_window())
+}
+
+/// `update install`. Unconfirmed, it opens the window's update dialog and
+/// the user decides there. Confirmed, the user approved it in the Sheprd
+/// that reached this machine over SSH, and the updater is stepped through
+/// download, install, and restart. A caller in one of this app's panes or
+/// terminals is an agent here, which must not approve the update itself.
+pub(super) fn install_update(caller: &Caller, confirmed: bool, cx: &mut App) -> Response {
+    let Some(handle) = updater_window(cx) else {
+        return no_window();
+    };
+    let disabled = handle
+        .read_with(cx, |view, _| match view.updater.state() {
+            State::Disabled(reason) => Some(reason.to_string()),
+            _ => None,
+        })
+        .unwrap_or(None);
+    if let Some(reason) = disabled {
+        return Response::error(
+            ErrorCode::Unsupported,
+            format!("Updates are off in this build: {reason}"),
+        );
+    }
+    if !confirmed {
+        return handle
+            .update(cx, |view, window, cx| {
+                if view.menu.page.is_some() {
+                    return Response::error(
+                        ErrorCode::WindowBusy,
+                        "A dialog is open in the window; close it first",
+                    );
+                }
+                view.open_app_update(false, window, cx);
+                reply(&view.updater)
+            })
+            .unwrap_or_else(|_| no_window());
+    }
+    if caller.pane_id.is_some() || caller.terminal_id.is_some() {
+        return Response::error(
+            ErrorCode::Failed,
+            "Only the Sheprd that connects to this machine can confirm its update; \
+             run `sheprd update install` to ask here",
+        );
+    }
+    if !crate::remote::Supervisor::request_update(cx) {
+        return Response::error(
+            ErrorCode::Unsupported,
+            "This app does not take updates from elsewhere",
+        );
+    }
     handle
         .read_with(cx, |view, _| reply(&view.updater))
         .unwrap_or_else(|_| no_window())

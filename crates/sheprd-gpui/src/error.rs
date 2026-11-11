@@ -264,6 +264,8 @@ pub enum Error {
     RemoteAgentTools(#[source] sheprd_client::Error),
     #[error(transparent)]
     RemoteControl(#[from] crate::remote::Error),
+    #[error(transparent)]
+    RemoteUpdate(#[from] crate::remote_update::Error),
     #[error("{method}: {source}")]
     Request {
         method: sheprd_client::Method,

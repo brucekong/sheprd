@@ -198,7 +198,11 @@ async fn installed_agents(program: Option<&std::path::Path>) -> Option<Vec<Agent
 /// Runs the search for at most `wait`. One that overruns is killed and
 /// reaped here, so repeated form loads cannot pile up children or threads.
 pub(super) fn list_agents(program: &std::path::Path, wait: Duration) -> Option<Vec<Agent>> {
-    let mut child = sheprd_client::new_command(program)
+    let mut command = sheprd_client::new_command(program);
+    // A user service's `PATH` is bare; the login shell's finds the agents
+    // the user's own shell runs, wherever their profile puts them.
+    sheprd_client::login_env::apply(&mut command);
+    let mut child = command
         .arg("agents")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())

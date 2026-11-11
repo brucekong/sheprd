@@ -43,6 +43,7 @@ impl SheprdWindow {
                     selected,
                     muted: mutes.is_some_and(|mutes| mutes.host(&endpoint.id)),
                     tags: self.device_tags.of(&endpoint.id).to_vec(),
+                    update: self.remote_update_offer(endpoint),
                 }
             })
             .collect()

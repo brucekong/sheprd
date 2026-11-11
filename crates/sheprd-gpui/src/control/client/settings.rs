@@ -163,15 +163,17 @@ pub(super) fn update(command: UpdateCommand, context: &Context) -> crate::Result
     let op = match command {
         UpdateCommand::Status => SettingsOp::Update,
         UpdateCommand::Check => SettingsOp::CheckUpdate,
+        UpdateCommand::Install { confirmed } => SettingsOp::InstallUpdate { confirmed },
     };
     match settings(context, op)? {
         Reply::Update {
             state,
             latest,
+            current,
             detail,
         } => Output::data(
             text::update(&state, latest.as_deref(), detail.as_deref()),
-            &json!({ "state": state, "latest": latest, "detail": detail }),
+            &json!({ "state": state, "latest": latest, "current": current, "detail": detail }),
         ),
         reply => Err(unexpected(Response::Settings { reply })),
     }

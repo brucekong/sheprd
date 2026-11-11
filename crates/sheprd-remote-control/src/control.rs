@@ -11,9 +11,11 @@
 use sheprd_chat_protocol::{read_frame, write_frame};
 pub mod app_update;
 pub mod changes;
+pub mod edited;
 pub mod hosts;
 pub mod layout;
 pub mod pull_requests;
+pub mod shortcuts;
 pub mod tags;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -198,6 +200,12 @@ pub enum Request {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         offer: Option<tags::ComputerTags>,
     },
+    /// This computer's text shortcuts: offers Sheprd's copy, if any, and
+    /// answers with the ones that stand (`shortcuts`).
+    Shortcuts {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        offer: Option<shortcuts::TextShortcuts>,
+    },
     /// On a host: adds a phone another computer's user allowed, as
     /// `herdr-remote-control enroll` asks. Sheprd never sends it to its
     /// own daemon.
@@ -265,6 +273,7 @@ pub enum Response {
     },
     Enrolled(hosts::Enrolled),
     Tags(tags::ComputerTags),
+    Shortcuts(shortcuts::TextShortcuts),
     AppUpdate {
         /// A phone asked to update since the last report. Taken by reading.
         requested: bool,

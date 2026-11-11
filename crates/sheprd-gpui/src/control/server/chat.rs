@@ -1,4 +1,4 @@
-//! `chat status`, `chat show`, `chat hide`, and `chat toggle`.
+//! `chat status`, `chat shortcuts`, `chat show`, `chat hide`, and `chat toggle`.
 use crate::control::protocol::{Call, ErrorCode, Response, chat::ChatOp};
 use gpui::App;
 
@@ -65,6 +65,25 @@ pub(super) fn serve(call: Call<ChatOp>, cx: &mut App) -> Response {
                 }
             })
         }
+        ChatOp::Shortcuts => in_window(&caller, cx, |_, _, cx| {
+            let list = crate::text_shortcuts::Store::current(cx);
+            let (shortcuts, complete) =
+                crate::control::protocol::chat::bounded_shortcuts(list.shortcuts.iter().map(
+                    |shortcut| crate::control::protocol::chat::ShortcutInfo {
+                        id: shortcut.id.clone(),
+                        label: shortcut.label(),
+                        title: shortcut.title.clone(),
+                        text: shortcut.text.clone(),
+                    },
+                ));
+            Response::Chat {
+                reply: Reply::Shortcuts {
+                    shortcuts,
+                    updated_ms: list.updated_ms,
+                    complete,
+                },
+            }
+        }),
         ChatOp::View { switch, pane } => in_window(&caller, cx, |view, window, cx| {
             // A herdr-core pane is nobody's Herdr pane: the one holding the
             // keyboard comes before Herdr's focused pane.
@@ -139,7 +158,10 @@ fn convert_code(error: &crate::chat::ConvertError) -> ErrorCode {
         | ConvertError::NoHome
         | ConvertError::NotReachable => ErrorCode::Unsupported,
         ConvertError::Convert(
-            convert::Error::AlreadyChat | convert::Error::NoAgent | convert::Error::NotRunning(_),
+            convert::Error::AlreadyChat
+            | convert::Error::FolderGone(_)
+            | convert::Error::NoAgent
+            | convert::Error::NotRunning(_),
         ) => ErrorCode::NotFound,
         ConvertError::AlreadyConverting | ConvertError::Convert(convert::Error::Busy(_)) => {
             ErrorCode::Busy

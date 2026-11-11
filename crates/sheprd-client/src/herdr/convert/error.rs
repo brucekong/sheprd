@@ -10,6 +10,8 @@ pub enum Error {
     AlreadyChat,
     #[error("{} is busy; wait until it is idle", .0.display_name())]
     Busy(Agent),
+    #[error("the session's folder {0} is gone, as when its worktree was removed")]
+    FolderGone(String),
     #[error("the session's folder or flags cannot be typed safely")]
     Line,
     #[error("the pane changed before its agent could stop")]

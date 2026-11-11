@@ -207,6 +207,10 @@ pub struct HostInfo {
     /// What groups it in the sidebar.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
+    /// The newer release Sheprd on that machine offers, which `host update`
+    /// asks to install: `"newer"` when it does not say which.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub update: Option<String>,
 }
 
 /// An alert a window kept, shown or held back. The text is the agent's.

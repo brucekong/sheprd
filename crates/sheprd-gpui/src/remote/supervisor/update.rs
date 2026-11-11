@@ -149,6 +149,17 @@ impl Updates {
 }
 
 impl Supervisor {
+    /// Starts an update someone approved outside the window: from another
+    /// Sheprd over SSH (`update install --confirmed`). It runs as a phone's
+    /// does. False when the app runs no supervisor, as in test modes.
+    pub(crate) fn request_update(cx: &mut App) -> bool {
+        if cx.try_global::<Self>().is_none() {
+            return false;
+        }
+        cx.global_mut::<Self>().updates.requested();
+        true
+    }
+
     /// Called by each window's tick: the window running the updater reports
     /// it and takes a phone's update a step further.
     pub(crate) fn follow_updater(updater: &mut Updater, cx: &mut App) {

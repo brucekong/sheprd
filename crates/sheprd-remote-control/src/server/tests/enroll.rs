@@ -62,6 +62,22 @@ fn tags_read_or_take_an_offer() {
 }
 
 #[test]
+fn shortcuts_read_or_take_an_offer() {
+    assert_eq!(
+        parse(args(&["shortcuts", "--offer", "--state-dir", "/s"])).unwrap(),
+        Invocation::Shortcuts {
+            state_dir: Some("/s".into()),
+            offer: true,
+        }
+    );
+    assert_eq!(
+        parse(args(&["shortcuts", "--help"])).unwrap(),
+        Invocation::Help
+    );
+    assert!(parse(args(&["shortcuts", "--nope"])).is_err());
+}
+
+#[test]
 fn the_daemon_enrolls_a_phone_and_says_where_it_answers() {
     let dir = tempfile::tempdir().unwrap();
     let state = web::tests::state(dir.path());

@@ -25,6 +25,8 @@ pub enum HostCommand {
         id: String,
         tags: Vec<String>,
     },
+    /// Ask to update Sheprd on a host by ID or label; absent, the caller's.
+    Update(Option<String>),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -111,6 +113,7 @@ pub(super) fn host(args: &mut Args) -> Result<HostCommand, CliError> {
             tags: std::iter::from_fn(|| args.optional_text().transpose())
                 .collect::<Result<_, _>>()?,
         },
+        Some("update") => HostCommand::Update(args.optional_text()?),
         _ => return Err(unknown("host", verb)),
     })
 }

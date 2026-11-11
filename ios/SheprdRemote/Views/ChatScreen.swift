@@ -44,7 +44,6 @@ struct ChatScreen: View {
         // Window titles show in Stage Manager and the app switcher.
         .navigationTitle(LockState.shared.hidesNames ? "Sheprd" : name)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(removing: width == .regular ? .title : nil)
         .toolbar(.hidden, for: .tabBar)
         .hidesConnectionToast()
         .toolbar {
@@ -56,9 +55,10 @@ struct ChatScreen: View {
                     .accessibilityLabel("Go to \(workspace.label)")
                 }
             }
-            // On an iPad the bar's middle also spans the terminal
-            // inspector, so the header leads there instead.
-            ToolbarItem(placement: width == .regular ? .topBarLeading : .principal) {
+            // Centered over the chat on an iPad too: the terminal
+            // inspector sits outside the chat's stack, so the bar's middle
+            // is the chat's.
+            ToolbarItem(placement: .principal) {
                 Button { showingSession = store != nil } label: {
                     VStack(spacing: 0) {
                         HStack(spacing: 4) {
@@ -71,7 +71,7 @@ struct ChatScreen: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .frame(minWidth: width == .regular ? 280 : 0, maxWidth: 360, alignment: width == .regular ? .leading : .center)
+                .frame(maxWidth: width == .regular ? 480 : 360)
                 .accessibilityHint("Shows the session's settings")
             }
             if let usage = store?.transcript?.usage {

@@ -1,6 +1,7 @@
 use super::*;
 use std::cell::{Cell, RefCell};
 
+mod folder;
 mod line;
 mod refusals;
 mod stopping;

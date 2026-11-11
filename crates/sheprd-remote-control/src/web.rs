@@ -15,11 +15,13 @@ pub(crate) mod attention;
 mod fragments;
 mod hosts;
 mod indicators;
+mod kept;
 mod log;
 mod nearby;
 mod origins;
 mod pace;
 mod render;
+mod shortcuts;
 mod stream;
 mod tags;
 mod terminal;
@@ -33,6 +35,7 @@ pub(crate) use log::report_limit;
 pub(crate) use origins::Origins;
 pub(crate) use pace::Typed;
 pub(crate) use render::now_ms;
+pub(crate) use shortcuts::Shortcuts;
 pub(crate) use stream::Connected;
 pub(crate) use tags::Tags;
 pub(crate) use terminal::read_scrolled;
@@ -102,6 +105,8 @@ pub(crate) struct State {
     pub(crate) reports: Mutex<auth::RateLimiter<std::net::IpAddr>>,
     /// Origins served before, which an installed app may still send.
     pub(crate) seen: Mutex<Origins>,
+    /// This computer's text shortcuts, which its phones and desktops share.
+    pub(crate) shortcuts: Shortcuts,
     /// This computer's tags, which its phones and desktops share.
     pub(crate) tags: Tags,
     /// Panes phones type into, so their screens are read again at once.
@@ -226,6 +231,14 @@ pub(crate) fn router(state: Shared) -> Router {
         .route("/api/v2/live", get(crate::native::live))
         .route("/api/v2/new", get(crate::native::new_options))
         .route("/api/v2/search", get(crate::native::search))
+        .route(
+            "/api/v2/shortcuts",
+            get(shortcuts::get)
+                .put(shortcuts::put)
+                .layer(DefaultBodyLimit::max(
+                    crate::control::shortcuts::MAX_WIRE_BYTES,
+                )),
+        )
         .route("/api/v2/tags", get(tags::get).put(tags::put))
         .route("/api/v2/term/{pane}/convert", post(crate::native::convert))
         .route("/api/v2/update", get(update::status).post(update::request))

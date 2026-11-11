@@ -44,7 +44,10 @@ use std::{
 /// nothing.
 fn line(resume: &Resume, program: Option<&Path>) -> Result<String, convert::Error> {
     match program {
-        Some(program) => resume.local_line(program),
+        Some(program) => {
+            resume.folder_here()?;
+            resume.local_line(program)
+        }
         None => remote_line(&resume.words()).ok_or(convert::Error::Line),
     }
 }

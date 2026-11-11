@@ -26,8 +26,17 @@ public struct Home: Codable, Hashable, Sendable {
     public var workspaces: [Workspace]
     /// The tags this computer keeps; older computers leave them out.
     public var tags: Tags?
+    /// When this computer's text shortcuts were last edited, so the list is
+    /// fetched only when it changes (`ShortcutSync`); older computers leave
+    /// it out.
+    public var shortcutsMs: UInt64?
 
-    public init(api: Int? = nil, computer: String, fingerprint: String, connected: Bool, waiting: Int, load: Load? = nil, working: Int? = nil, version: String? = nil, workspaces: [Workspace], tags: Tags? = nil) {
+    enum CodingKeys: String, CodingKey {
+        case api, computer, fingerprint, connected, waiting, load, working, version, workspaces, tags
+        case shortcutsMs = "shortcuts_ms"
+    }
+
+    public init(api: Int? = nil, computer: String, fingerprint: String, connected: Bool, waiting: Int, load: Load? = nil, working: Int? = nil, version: String? = nil, workspaces: [Workspace], tags: Tags? = nil, shortcutsMs: UInt64? = nil) {
         self.api = api
         self.computer = computer
         self.fingerprint = fingerprint
@@ -38,6 +47,7 @@ public struct Home: Codable, Hashable, Sendable {
         self.version = version
         self.workspaces = workspaces
         self.tags = tags
+        self.shortcutsMs = shortcutsMs
     }
 
     /// A computer's tags and when they were last edited, also the body and

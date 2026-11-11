@@ -128,6 +128,7 @@ impl ChatLayout for Cards {
                     .px(px(8.))
                     .pb(px(8.))
                     .child(parts.attach)
+                    .child(parts.shortcuts)
                     .children(parts.settings)
                     .child(div().flex_1())
                     .children(parts.usage)

@@ -52,6 +52,7 @@ mod protocol;
 mod px0;
 mod remote;
 mod remote_control;
+mod remote_update;
 mod review;
 mod root;
 mod security;

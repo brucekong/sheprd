@@ -1,8 +1,8 @@
 # sheprd.org
 
 The page Netlify publishes at <https://sheprd.org>. It is plain HTML, CSS and
-JavaScript, with no install or build step. `site/` is separate and stays with
-herdrui.dev.
+JavaScript; the docs are generated from Markdown in GitHub Actions. The root
+`site/` is separate and stays with herdrui.dev.
 
 ```sh
 python3 -m http.server -d website/site 8000
@@ -12,6 +12,22 @@ Python's server does not emulate Netlify headers or redirects. The Netlify
 project uses base directory `website`, so it reads `website/netlify.toml`, which
 publishes `website/site`. Only that folder is deployed, so this README and the
 config stay private.
+
+Automatic Netlify builds are disabled in the project's settings. The
+[`Deploy website` workflow](../.github/workflows/site.yml) deploys on pushes to
+`main` that change the published site, its docs sources, or deployment inputs.
+Changes to the separate `herdrui/` worker do not trigger it. In GitHub's
+**Settings → Environments → website**, restrict deployment branches to `main`
+and configure environment secrets `NETLIFY_AUTH_TOKEN` (a Netlify personal access
+token) and `NETLIFY_SITE_ID` (the sheprd.org project ID). The deploy job uses this
+environment. CI generates the docs, then uploads the static
+folder from the repository root with:
+
+```sh
+netlify deploy --prod --dir=website/site --no-build
+```
+
+This skips Netlify's build pipeline; production uploads are serialized.
 
 `herdrui/` is the separate Cloudflare Worker for herdrui.dev, and is not
 published by Netlify; see [`herdrui/README.md`](herdrui/README.md).
@@ -30,7 +46,7 @@ Tests: `python3 -m unittest discover -s site/tests`.
 
 ## Docs
 
-<https://sheprd.org/docs/> is built from Markdown when Netlify deploys:
+<https://sheprd.org/docs/> is built from Markdown in CI before the upload:
 `website/docs/*.md` holds the user guides, and `docs/automations.md`,
 `docs/mods.md` and `docs/cli.md` are rendered from where they are, so each
 guide has one copy. `tools/docs.py` lists every page in its `NAV`, in reading

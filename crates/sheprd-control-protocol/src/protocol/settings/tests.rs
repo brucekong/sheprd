@@ -37,6 +37,8 @@ fn requests_round_trip_with_a_stable_form() {
         SettingsOp::Bell,
         SettingsOp::CheckUpdate,
         SettingsOp::Update,
+        SettingsOp::InstallUpdate { confirmed: true },
+        SettingsOp::InstallUpdate { confirmed: false },
         SettingsOp::Integrations,
     ] {
         let request = request(op);
@@ -103,6 +105,7 @@ fn replies_round_trip() {
         Reply::Update {
             state: "disabled".into(),
             latest: None,
+            current: Some("20261101.1".into()),
             detail: Some("Local build".into()),
         },
         Reply::Integrations {
@@ -143,3 +146,30 @@ fn slow_operations_extend_the_answer_timeout() {
 }
 
 mod language;
+
+#[test]
+fn install_update_is_unconfirmed_unless_said() {
+    let minimal: Request =
+        serde_json::from_str(r#"{"method":"settings","caller":{},"op":{"op":"install_update"}}"#)
+            .unwrap();
+    assert_eq!(
+        minimal,
+        request(SettingsOp::InstallUpdate { confirmed: false })
+    );
+}
+
+#[test]
+fn an_update_reply_from_an_older_app_has_no_current_version() {
+    let reply: Reply =
+        serde_json::from_str(r#"{"kind":"update","state":"available","latest":"20261101.2"}"#)
+            .unwrap();
+    assert_eq!(
+        reply,
+        Reply::Update {
+            state: "available".into(),
+            latest: Some("20261101.2".into()),
+            current: None,
+            detail: None,
+        }
+    );
+}

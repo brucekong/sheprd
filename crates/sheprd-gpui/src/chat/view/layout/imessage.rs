@@ -233,6 +233,7 @@ impl ChatLayout for IMessage {
                         theme.foreground,
                         12,
                     ))))
+                    .child(parts.shortcuts.mb(px(3.)))
                     .child(field),
             )
             .child(

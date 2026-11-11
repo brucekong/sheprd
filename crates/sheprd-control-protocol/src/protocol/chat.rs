@@ -21,6 +21,8 @@ pub enum ChatOp {
         #[serde(default)]
         pane: Option<String>,
     },
+    /// The person's text shortcuts, which every chat's composer offers.
+    Shortcuts,
     /// Shows the chat view over a pane (`on`), or its terminal (`off`).
     View {
         switch: Switch,
@@ -88,6 +90,52 @@ pub enum Reply {
         agent: String,
         pane_id: String,
     },
+    /// The text shortcuts, in the person's order.
+    Shortcuts {
+        shortcuts: Vec<ShortcutInfo>,
+        /// When the list was last edited, in milliseconds since the Unix
+        /// epoch; 0 for a list never edited.
+        updated_ms: u64,
+        /// Every shortcut is listed: a reply stops short of
+        /// [`MAX_SHORTCUT_BYTES`] encoded rather than exceed the message bound.
+        complete: bool,
+    },
+}
+
+/// The most bytes a reply's shortcuts take encoded, escapes and all, well
+/// within [`super::MAX_MESSAGE`].
+pub const MAX_SHORTCUT_BYTES: usize = 160 * 1024;
+
+/// One text shortcut.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ShortcutInfo {
+    pub id: String,
+    /// What a menu shows: its title, or the start of its text.
+    pub label: String,
+    /// Blank when the label is the start of the text.
+    #[serde(default)]
+    pub title: String,
+    pub text: String,
+}
+
+/// `shortcuts` as a reply lists them: in order, until the next would take
+/// them past [`MAX_SHORTCUT_BYTES`] as JSON, where a quote, backslash,
+/// newline, or tab takes two bytes. Whether all of them fit.
+pub fn bounded_shortcuts(
+    shortcuts: impl IntoIterator<Item = ShortcutInfo>,
+) -> (Vec<ShortcutInfo>, bool) {
+    let mut listed = Vec::new();
+    let mut bytes = 0;
+    for shortcut in shortcuts {
+        // One more for the comma between entries; one that cannot be
+        // encoded is counted as too large to list.
+        bytes += serde_json::to_string(&shortcut).map_or(usize::MAX, |encoded| encoded.len() + 1);
+        if bytes > MAX_SHORTCUT_BYTES {
+            return (listed, false);
+        }
+        listed.push(shortcut);
+    }
+    (listed, true)
 }
 
 #[cfg(test)]

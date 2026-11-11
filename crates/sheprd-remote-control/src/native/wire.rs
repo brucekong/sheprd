@@ -110,8 +110,12 @@ pub(crate) enum ServerMessage {
         #[serde(flatten)]
         view: View,
     },
+    /// A request refused, or a followed view that cannot go on, with the
+    /// view it is about when there is one, so the phone shows it there.
     Error {
         message: String,
+        #[serde(flatten, default, skip_serializing_if = "Option::is_none")]
+        view: Option<View>,
     },
     Bye {
         reason: ByeReason,
