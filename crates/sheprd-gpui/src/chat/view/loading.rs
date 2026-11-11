@@ -2,16 +2,15 @@
 //! output is covered, never its original editor.
 
 use super::*;
-use crate::chat::terminal::InputState;
+use crate::chat::terminal::{InputState, Layout};
 use sheprd_client::protocol::{AgentStatus, PaneSurfacePane};
 
 impl SheprdWindow {
-    pub(super) fn render_chat_loading(
+    pub(crate) fn chat_loading_conversation(
         &self,
         pane: &PaneSurfacePane,
         surface: &PaneSurfaceFrame,
-        cx: &mut Context<Self>,
-    ) -> Option<AnyElement> {
+    ) -> Option<(Layout, bool)> {
         // A clipped editor reports AwaitingFit instead of Blocked in the
         // geometry. Its live approval/question still must remain uncovered.
         if self.chats.raw(&pane.pane_id)
@@ -31,9 +30,16 @@ impl SheprdWindow {
         );
         // Never cover a question/approval or an editor whose actual caret
         // already uses the conversation area. Input routing stays untouched.
-        if layout.conversation.height == 0 {
-            return None;
-        }
+        (layout.conversation.height > 0).then_some((layout, discovering))
+    }
+
+    pub(super) fn render_chat_loading(
+        &self,
+        pane: &PaneSurfacePane,
+        surface: &PaneSurfaceFrame,
+        cx: &mut Context<Self>,
+    ) -> Option<AnyElement> {
+        let (layout, discovering) = self.chat_loading_conversation(pane, surface)?;
         let bounds = pane_bounds(
             layout.conversation,
             self.cell_width,
@@ -53,7 +59,10 @@ impl SheprdWindow {
                 .h(bounds.size.height)
                 .occlude()
                 .overflow_hidden()
-                .bg(rgb(theme.background))
+                .when(!cfg!(target_os = "macos"), |view| {
+                    view.bg(self.fill().base(theme.background))
+                })
+                .children(self.chat_ground())
                 .text_font(&self.config.ui)
                 .text_size(px(self.chat_text_size()))
                 .text_color(rgb(theme.foreground))

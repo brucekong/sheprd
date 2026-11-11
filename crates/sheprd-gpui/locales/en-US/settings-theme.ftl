@@ -64,6 +64,11 @@ settings-theme-backdrop-change = Change
 settings-theme-backdrop-remove = Remove
 # The button of the file chooser that picks a picture.
 settings-theme-backdrop-choose = Choose
+settings-theme-backdrop-fit = Fit
+settings-theme-backdrop-fit-cover = Cover
+settings-theme-backdrop-fit-contain = Contain
+settings-theme-backdrop-fit-fill = Fill
+settings-theme-backdrop-fit-scale-down = Scale down
 settings-theme-backdrop-opacity = Background opacity
 settings-theme-backdrop-percent = { $percent }%
 

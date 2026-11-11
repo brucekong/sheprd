@@ -49,6 +49,37 @@ macro_rules! agent_icons {
             pub(crate) fn element(self, size: f32, color: u32) -> gpui::AnyElement {
                 icon(self.path(), size, color)
             }
+
+            /// The agent's mark, coloring to its brand accent while hovered.
+            pub(crate) fn element_with_hover(
+                self,
+                size: f32,
+                color: u32,
+                group: SharedString,
+            ) -> gpui::AnyElement {
+                let hover_color = self.brand_color().unwrap_or(color);
+                icon_with_hover(self.path(), size, color, hover_color, group)
+            }
+
+            /// The agent's distinctive brand accent hue, used when highlighting
+            /// the icon on hover.
+            pub(crate) fn brand_color(self) -> Option<u32> {
+                match self {
+                    Self::Claude => Some(0xd97706),
+                    Self::Codex => Some(0x10a37f),
+                    Self::Gemini => Some(0x1a73e8),
+                    Self::Copilot => Some(0x6e40c9),
+                    Self::OpenCode => Some(0x22c55e),
+                    Self::Pi => Some(0xf59e0b),
+                    Self::Antigravity => Some(0x4285f4),
+                    Self::Cursor => Some(0x007acc),
+                    Self::Devin => Some(0x06b6d4),
+                    Self::Kimi => Some(0x2563eb),
+                    Self::Qwen => Some(0x7c3aed),
+                    Self::Grok => Some(0xef4444),
+                    _ => None,
+                }
+            }
         }
     };
 }
@@ -98,6 +129,33 @@ pub(crate) fn icon(path: impl Into<SharedString>, size: f32, color: u32) -> gpui
             .size(px(size))
             .flex_none()
             .text_color(rgb(color))
+            .into_any_element()
+    }
+}
+
+/// An icon that takes a distinctive brand accent when its group is hovered.
+pub(crate) fn icon_with_hover(
+    path: impl Into<SharedString>,
+    size: f32,
+    color: u32,
+    hover_color: u32,
+    group: SharedString,
+) -> gpui::AnyElement {
+    use gpui::{ObjectFit, img, prelude::*, px, rgb, svg};
+    let path = path.into();
+    if path.ends_with(".png") {
+        img(path)
+            .size(px(size))
+            .flex_none()
+            .object_fit(ObjectFit::Contain)
+            .into_any_element()
+    } else {
+        svg()
+            .path(path)
+            .size(px(size))
+            .flex_none()
+            .text_color(rgb(color))
+            .group_hover(group, move |s| s.text_color(rgb(hover_color)))
             .into_any_element()
     }
 }

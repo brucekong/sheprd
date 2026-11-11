@@ -126,7 +126,7 @@ impl SheprdWindow {
         let (next, send) = applied(draft, nothing_else, text);
         input.update(cx, |input, cx| input.set_text_at(&next, next.len(), cx));
         if send {
-            self.submit_chat_prompt(pane_id, &input, cx);
+            self.submit_chat_prompt(pane_id, &input, window, cx);
         }
         let focus = input.read(cx).focus.clone();
         window.focus(&focus, cx);

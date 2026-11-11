@@ -26,9 +26,48 @@ pub struct Backdrop {
     /// A picture behind the window, absolute or under `~/`. It covers the
     /// desktop, so the window itself stays opaque.
     pub image: Option<PathBuf>,
+    /// How `image` is sized into the window.
+    pub fit: Fit,
     /// What `blur` paints behind the window on Windows 11. Other platforms,
     /// and Windows 10, have one blur and ignore it.
     pub material: Material,
+}
+
+/// How a backdrop picture is sized into the window.
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum Fit {
+    /// Scaled to fill the window, cropping whichever side overhangs.
+    #[default]
+    Cover,
+    /// Scaled to fit inside the window, the whole picture shown.
+    Contain,
+    /// Stretched to the window's width and height.
+    Fill,
+    /// Centered at its own size, or scaled down as `Contain` when larger
+    /// than the window.
+    ScaleDown,
+}
+
+impl Fit {
+    /// The config file spelling.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Cover => "cover",
+            Self::Contain => "contain",
+            Self::Fill => "fill",
+            Self::ScaleDown => "scale-down",
+        }
+    }
+
+    pub(crate) fn object_fit(self) -> gpui::ObjectFit {
+        match self {
+            Self::Cover => gpui::ObjectFit::Cover,
+            Self::Contain => gpui::ObjectFit::Contain,
+            Self::Fill => gpui::ObjectFit::Fill,
+            Self::ScaleDown => gpui::ObjectFit::ScaleDown,
+        }
+    }
 }
 
 /// The Windows 11 system backdrop a blurred window asks DWM for.
@@ -61,6 +100,7 @@ impl Default for Backdrop {
             opacity: 1.,
             blur: false,
             image: None,
+            fit: Fit::default(),
             material: Material::default(),
         }
     }
@@ -111,6 +151,7 @@ pub(crate) enum Edit {
     Opacity(f32),
     Blur(bool),
     Material(Material),
+    Fit(Fit),
     /// `None` removes the picture.
     Image(Option<PathBuf>),
 }
@@ -128,6 +169,7 @@ impl Edit {
             }
             Self::Blur(blur) => ("blur", Some((*blur).into())),
             Self::Material(material) => ("material", Some(material.name().into())),
+            Self::Fit(fit) => ("fit", Some(fit.name().into())),
             Self::Image(image) => {
                 candidate.image = image.clone();
                 let value = image

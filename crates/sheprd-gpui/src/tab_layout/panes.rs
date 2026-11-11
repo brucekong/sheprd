@@ -38,6 +38,7 @@ pub(crate) struct PaneFace {
 
 /// Read-only inputs every pane of one tab shares.
 pub(crate) struct PaneContext<'a> {
+    pub(crate) fill: crate::backdrop::Fill,
     pub(crate) theme: &'a Theme,
     /// The tab font, for titles.
     pub(crate) tabs: &'a FontConfig,

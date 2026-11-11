@@ -1436,7 +1436,10 @@ and other platforms ignore `material`.
 
 The **Picture** tile opens a file chooser and puts an image behind the window
 instead (`image`, an absolute path or one under `~/`), and starts it at 75%
-opacity if the window was opaque, so the picture shows. The picture covers the
+opacity if the window was opaque, so the picture shows. **Fit** (`fit`) chooses
+how it is sized into the window: **Cover** (`"cover"`, the default), **Contain**
+(`"contain"`), **Fill** (`"fill"`), or **Scale down** (`"scale-down"`). The
+picture covers the
 desktop, so the window itself stays opaque and blur does not apply. It is
 decoded off the UI thread, scaled to at most 3840 pixels on its longest side,
 and uploaded once; files over 64 MiB are refused. A picture that cannot be read

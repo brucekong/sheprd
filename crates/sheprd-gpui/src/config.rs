@@ -72,7 +72,7 @@ mod zen;
 pub use accent::Accent;
 pub use agent_skill::{AgentSkillConfig, SkillInstall};
 pub use agents_placement::AgentsPlacement;
-pub use backdrop::{Backdrop, Material};
+pub use backdrop::{Backdrop, Fit, Material};
 pub use chat::{ChatLauncher, ChatLayoutMode};
 pub use cloud::CloudConfig;
 #[cfg(test)]

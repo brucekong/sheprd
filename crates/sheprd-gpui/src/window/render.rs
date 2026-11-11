@@ -256,8 +256,10 @@ impl Render for SheprdWindow {
             window.on_next_frame(move |_, cx| signal.update(cx, |_, cx| cx.notify()));
         }
         let regions = self.terminal_regions(surface.as_ref(), &highlights, slide, &look, cx);
-        // Without regions the canvas paints the whole grid, images included.
-        let whole = regions.is_empty();
+        // Images stay whole-frame; a single pane covered by a chat leaves no regions.
+        let whole = surface
+            .as_ref()
+            .is_some_and(|s| !s.graphics.placements.is_empty());
         // A chat's page panel lies beneath the window's drawing on macOS,
         // over the cells of the chat's pane, so the cells paint around it.
         #[cfg(target_os = "macos")]

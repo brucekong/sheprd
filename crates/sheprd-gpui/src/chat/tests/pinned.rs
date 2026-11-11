@@ -85,3 +85,51 @@ fn a_short_chat_shows_no_pin(cx: &mut TestAppContext) {
     redraw(&view, cx);
     assert!(cx.debug_bounds("chat-pinned").is_none());
 }
+
+#[gpui::test]
+fn scrolling_at_the_end_keeps_an_earlier_turn_unpinned(cx: &mut TestAppContext) {
+    let (view, _peer, cx) = open(cx, ConnectTarget::Local);
+    let program = Program::new();
+    let mut entries: Vec<Entry> = std::iter::once(Entry {
+        id: EntryId(1),
+        kind: EntryKind::User {
+            text: "First question".into(),
+            files: 0,
+        },
+    })
+    .chain((2..=35).map(|id| agent(id, "A line of the first reply.")))
+    .collect();
+    entries.push(Entry {
+        id: EntryId(36),
+        kind: EntryKind::User {
+            text: "Second question".into(),
+            files: 0,
+        },
+    });
+    entries.push(agent(37, "Short second reply."));
+    let _stream = attach_with(&view, &program, snapshot(cursor(1, 0), entries), cx);
+    redraw(&view, cx);
+    assert!(cx.debug_bounds("chat-pinned").is_none());
+
+    let chat = cx.debug_bounds("chat-view").unwrap();
+    let wheel = |delta: f32, cx: &mut VisualTestContext| {
+        cx.simulate_event(gpui::ScrollEvent {
+            position: chat.center(),
+            delta: gpui::ScrollDelta::Pixels(gpui::point(gpui::px(0.), gpui::px(delta))),
+            ..Default::default()
+        });
+        cx.run_until_parked();
+    };
+
+    // Continuing to scroll down at the end must not flash the earlier turn's pin.
+    wheel(-120., cx);
+    assert!(cx.debug_bounds("chat-pinned").is_none());
+
+    // Scrolling up pins the earlier turn; scrolling back to the end clears it.
+    wheel(200., cx);
+    assert!(cx.debug_bounds("chat-pinned").is_some());
+    wheel(-400., cx);
+    assert!(cx.debug_bounds("chat-pinned").is_none());
+    wheel(-120., cx);
+    assert!(cx.debug_bounds("chat-pinned").is_none());
+}

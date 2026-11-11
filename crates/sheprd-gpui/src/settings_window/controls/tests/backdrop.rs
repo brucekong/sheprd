@@ -190,6 +190,15 @@ fn each_mode_shows_three_tiles_and_only_its_own_controls(cx: &mut TestAppContext
             cx.debug_bounds("settings-backdrop-remove").is_some(),
             picture
         );
+        assert_eq!(cx.debug_bounds("settings-backdrop-fit").is_some(), picture);
+        for segment in [
+            "settings-backdrop-fit-0",
+            "settings-backdrop-fit-1",
+            "settings-backdrop-fit-2",
+            "settings-backdrop-fit-3",
+        ] {
+            assert_eq!(cx.debug_bounds(segment).is_some(), picture, "{segment}");
+        }
         // The tiles share one row and stay inside the card.
         let card = cx.debug_bounds("settings-backdrop").unwrap();
         let solid = cx.debug_bounds("settings-backdrop-solid").unwrap();

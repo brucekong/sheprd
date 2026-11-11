@@ -283,3 +283,35 @@ fn a_read_only_overlay_blocks_keys_paste_and_file_drops_until_switched_back(
     poll(&view, &program, cx);
     assert!(cx.update(|window, cx| view.read(cx).chat_focused(window, cx)));
 }
+
+#[gpui::test]
+fn a_chat_pane_leaves_a_translucent_backdrop_clear(cx: &mut TestAppContext) {
+    let (view, _peer, cx) = open(cx, ConnectTarget::Local);
+    cx.update(|_, cx| {
+        view.update(cx, |view, cx| {
+            view.config.backdrop.opacity = 0.5;
+            cx.notify();
+        });
+    });
+    let program = Program::new();
+    let _stream = attach(&view, &program, cx);
+    let chat = cx.debug_bounds("chat-view").unwrap();
+    let layers: Vec<f32> = cx.update(|window, _| {
+        let region = chat.scale(window.scale_factor());
+        let mut quads = window.painted_quads();
+        quads.sort_by_key(|quad| quad.order);
+        quads
+            .iter()
+            .filter(|quad| {
+                quad.bounds.origin.x <= region.origin.x
+                    && quad.bounds.origin.y <= region.origin.y
+                    && quad.bounds.bottom_right().x >= region.bottom_right().x
+                    && quad.bounds.bottom_right().y >= region.bottom_right().y
+            })
+            .filter_map(|quad| quad.background.as_solid())
+            .map(|color| color.a)
+            .filter(|alpha| *alpha > 0.)
+            .collect()
+    });
+    assert_eq!(layers, [0.5]);
+}

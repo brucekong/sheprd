@@ -130,6 +130,7 @@ impl SheprdWindow {
             tab: tab.id,
             chrome,
             panes: PaneContext {
+                fill: self.fill(),
                 theme: &self.theme,
                 tabs: &self.config.tabs,
                 terminal: &self.config.terminal,
@@ -161,7 +162,9 @@ impl SheprdWindow {
             .size_full()
             .flex()
             .p(px(chrome.inset()))
-            .bg(rgb(chrome.gutter_fill(&self.theme)))
+            .when(!self.fill().translucent(), |frame| {
+                frame.bg(rgb(chrome.gutter_fill(&self.theme)))
+            })
             .child(
                 div()
                     .relative()

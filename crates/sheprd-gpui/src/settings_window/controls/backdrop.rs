@@ -4,7 +4,7 @@
 // i18n: migrated
 use super::*;
 use crate::config::{
-    Backdrop, Material, Theme,
+    Backdrop, Fit, Material, Theme,
     backdrop::{Edit, IMAGE_OPACITY},
 };
 use crate::direction::Logical;
@@ -196,6 +196,7 @@ impl SettingsWindow {
                 .flex()
                 .flex_col()
                 .child(self.backdrop_picture_row(cx))
+                .child(self.backdrop_fit_row(cx))
                 .child(self.backdrop_ruler(cx)),
         };
         div()
@@ -333,6 +334,39 @@ impl SettingsWindow {
                         })),
                     ),
             )
+    }
+
+    fn backdrop_fit_row(&self, cx: &mut Context<Self>) -> Div {
+        let fit = self.config.backdrop.fit;
+        let view = cx.entity().downgrade();
+        div()
+            .debug_selector(|| "settings-backdrop-fit".into())
+            .row()
+            .items_center()
+            .justify_between()
+            .gap(px(12.))
+            .py(px(8.))
+            .child(div().flex_none().child(fl!("settings-theme-backdrop-fit")))
+            .child(ui::segmented(
+                &self.theme,
+                "settings-backdrop-fit",
+                &[
+                    (Fit::Cover, fl!("settings-theme-backdrop-fit-cover")),
+                    (Fit::Contain, fl!("settings-theme-backdrop-fit-contain")),
+                    (Fit::Fill, fl!("settings-theme-backdrop-fit-fill")),
+                    (
+                        Fit::ScaleDown,
+                        fl!("settings-theme-backdrop-fit-scale-down"),
+                    ),
+                ],
+                Some(fit),
+                true,
+                move |fit, _, cx| {
+                    let _ = view.update(cx, |this, cx| {
+                        this.save_backdrop(vec![Edit::Fit(fit)], cx);
+                    });
+                },
+            ))
     }
 
     fn save_backdrop(&mut self, edits: Vec<Edit>, cx: &mut Context<Self>) {

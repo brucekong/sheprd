@@ -105,6 +105,11 @@ impl Glide {
         self.scrolled.set(true);
     }
 
+    /// Whether the last layout left the list following its end.
+    pub(crate) fn following(&self) -> bool {
+        self.following.get()
+    }
+
     /// Whether the user left the list, or is leaving it, above its end.
     pub(crate) fn stopped(&self) -> bool {
         self.scrolled.get() || !self.following.get()
@@ -142,14 +147,15 @@ impl Glide {
         canvas(
             move |_, window, _| {
                 let settled = list.logical_scroll_top();
-                // What reads the top only cares which row it is in, and
-                // whether that row starts there.
-                if crossed(top.replace(settled), settled) {
-                    window.request_animation_frame();
-                }
                 let left = behind(&list);
+                let was_following = following.get();
                 if !held {
                     settle(&following, &scrolled, left);
+                }
+                // What reads the top only cares which row it is in, whether
+                // that row starts there, and whether the list still follows.
+                if crossed(top.replace(settled), settled) || following.get() != was_following {
+                    window.request_animation_frame();
                 }
                 let stopped = held || scrolled.get() || !following.get();
                 let now = motion::now();

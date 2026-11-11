@@ -343,7 +343,7 @@ impl SheprdWindow {
             // A page in the panel shows from beneath the window's drawing
             // on macOS, so the chat's background paints around it.
             .when(!cfg!(target_os = "macos"), |view| {
-                view.bg(rgb(theme.background))
+                view.bg(self.fill().base(theme.background))
             })
             // Files dragged over the chat become attachments when dropped. The
             // chat occludes the terminal's own drop handler, so it takes the
@@ -530,17 +530,8 @@ impl SheprdWindow {
     /// The chat's background where no page shows: on macOS, where a page
     /// lies beneath the window's drawing. Elsewhere the view paints its
     /// own background.
-    fn chat_ground(&self) -> Option<AnyElement> {
-        #[cfg(target_os = "macos")]
-        return Some(
-            crate::browser::ground_around_pages(
-                rgb(self.theme.background).into(),
-                self.browser.drawn_pages(),
-            )
-            .into_any_element(),
-        );
-        #[cfg(not(target_os = "macos"))]
-        None
+    pub(super) fn chat_ground(&self) -> Option<AnyElement> {
+        self.terminal_ground(self.fill().base(self.theme.background))
     }
 
     /// The check that asks for another frame when this chat's pages moved

@@ -776,6 +776,10 @@ size = 12
 # A picture behind the window, absolute or under ~/. The window stays opaque
 # over it; lower opacity shows more of it.
 # image = "~/Pictures/wallpaper.jpg"
+# How image is sized into the window: "cover" (the default, fills and crops),
+# "contain" (fits inside), "fill" (stretches), or "scale-down" (centered, or
+# scaled down as "contain" when larger than the window).
+# fit = "cover"
 
 # What the status bar shows, also under Settings > Status bar. Whether usage,
 # CPU/memory, and the GPU show at all is [usage] show, show_system_load, and

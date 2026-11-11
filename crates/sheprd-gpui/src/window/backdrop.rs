@@ -112,10 +112,11 @@ impl SheprdWindow {
         let Some(texture) = self.backdrop.picture.texture() else {
             return root;
         };
+        let fit = self.config.backdrop.fit.object_fit();
         // Absolute, so it takes no part in the column's layout, and first, so
         // everything else paints over it.
         #[cfg(target_os = "macos")]
-        return root.child(crate::browser::picture_around_pages(texture, pages));
+        return root.child(crate::browser::picture_around_pages(texture, fit, pages));
         #[cfg(not(target_os = "macos"))]
         root.child(
             img(texture)
@@ -123,7 +124,7 @@ impl SheprdWindow {
                 .top_0()
                 .left_0()
                 .size_full()
-                .object_fit(ObjectFit::Cover),
+                .object_fit(fit),
         )
     }
 

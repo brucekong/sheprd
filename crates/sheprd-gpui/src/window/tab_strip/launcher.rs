@@ -152,18 +152,24 @@ impl SheprdWindow {
         agents
             .iter()
             .map(|&agent| {
+                let group =
+                    SharedString::from(slot.selector(&format!("chat-launch-{}", agent.name())));
                 layout.new_tab(
                     self.agent_button(slot, agent, cx),
-                    self.agent_mark(agent),
+                    self.agent_mark_with_group(agent, group),
                     &self.theme,
                 )
             })
             .collect()
     }
 
-    /// `agent`'s mark, in color.
-    fn agent_mark(&self, agent: Agent) -> AnyElement {
-        AgentIcon::from_identity(Some(agent.name())).element(ICON, self.theme.foreground)
+    /// `agent`'s mark, coloring to its brand accent while its button is hovered.
+    fn agent_mark_with_group(&self, agent: Agent, group: SharedString) -> AnyElement {
+        AgentIcon::from_identity(Some(agent.name())).element_with_hover(
+            ICON,
+            self.theme.foreground,
+            group,
+        )
     }
 
     /// The button that starts a chat with `agent`: its identity, tooltip,
@@ -172,9 +178,11 @@ impl SheprdWindow {
         let selector = format!("chat-launch-{}", agent.name());
         let label = SharedString::from(fl!("tab-strip-new-chat", agent = agent.display_name()));
         let (foreground, surface) = (self.theme.foreground, self.theme.surface);
+        let id_str = SharedString::from(slot.selector(&selector));
         div()
-            .id(SharedString::from(slot.selector(&selector)))
+            .id(id_str.clone())
             .debug_selector(move || slot.selector(&selector))
+            .group(id_str)
             .role(Role::Button)
             .aria_label(label.clone())
             .map(|control| self.chrome_stop(Region::TitleBar, control))
@@ -208,6 +216,8 @@ impl SheprdWindow {
             .collect();
         let open = self.launcher_open(slot);
         let hover = self.theme.active;
+        let first_group =
+            SharedString::from(slot.selector(&format!("chat-launch-{}", first.name())));
         self.launcher_hover(slot, "chat-launcher-button", cx)
             .gap(px(2.))
             .when(open && !others.is_empty(), |group| {
@@ -233,7 +243,7 @@ impl SheprdWindow {
                     .border_color(rgb(self.theme.active))
                     .text_size(px(self.config.ui.size - 1.))
                     .text_color(rgb(self.theme.foreground))
-                    .child(self.agent_mark(first))
+                    .child(self.agent_mark_with_group(first, first_group))
                     .child(first.display_name()),
             )
             .into_any_element()

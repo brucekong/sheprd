@@ -106,6 +106,10 @@ pub(crate) struct CoreTerminalView {
     copying: Option<history::Reading>,
     /// The selection whose copy landed, to be said on the next poll.
     copied: Option<Selection>,
+    /// Whether a chat view covers this pane: the canvas still fits its
+    /// bounds so the terminal and chat keep their size, without painting
+    /// cells or overlays under the chat.
+    covered: bool,
     /// Something typed while the connection was away, for the window to
     /// say it was not sent.
     dropped: std::cell::Cell<bool>,
@@ -192,6 +196,7 @@ impl CoreTerminalView {
             copy_mode: None,
             copying: None,
             copied: None,
+            covered: false,
             dropped: std::cell::Cell::new(false),
             cwd: None,
             effects: Effects::default(),
@@ -335,6 +340,11 @@ impl CoreTerminalView {
     /// render, which follows the window's, so it needs no notify.
     pub(crate) fn set_pane(&mut self, pane: Option<PaneLook>) {
         self.pane = pane;
+    }
+
+    /// Marks whether a chat view covers this pane on this frame.
+    pub(crate) fn set_covered(&mut self, covered: bool) {
+        self.covered = covered;
     }
 
     /// The frame to paint: a veiled pane's with its cursor hidden.
@@ -590,10 +600,11 @@ impl Render for CoreTerminalView {
         let copy_badge = self.render_copy_mode(cx);
         let link_rows = self.link_rows();
         let on_link = !link_rows.is_empty();
+        let covered = self.covered;
         let pane = self.pane;
         let background = self.look.background;
         let focus = self.focus.clone();
-        let status = self.status();
+        let status = (!covered).then(|| self.status()).flatten();
         let selecting = self.press == Some(pointer::Press::Selecting);
         let sliding = self.sliding(crate::motion::now());
         if sliding.is_some() {
@@ -609,6 +620,9 @@ impl Render for CoreTerminalView {
                 canvas(
                     move |bounds, _, cx| fitting.update(cx, |view, _| view.fit(bounds)),
                     move |bounds, _, window, cx| {
+                        if covered {
+                            return;
+                        }
                         // A selection dragged past the view's edges keeps
                         // following the pointer, which no longer hovers it.
                         if selecting {
@@ -679,19 +693,29 @@ impl Render for CoreTerminalView {
                 )
                 .size_full(),
             )
-            .when(self.stale, |body| {
+            .when(self.stale && !covered, |body| {
                 body.child(div().absolute().inset_0().bg(background.opacity(STALE_DIM)))
             })
-            .when_some(pane.and_then(|pane| pane.veil), |body, veil| {
-                body.child(
-                    div()
-                        .absolute()
-                        .inset_0()
-                        .bg(background.opacity(f32::from(veil) / 255.)),
-                )
+            .when_some(
+                (!covered)
+                    .then_some(pane)
+                    .flatten()
+                    .and_then(|pane| pane.veil),
+                |body, veil| {
+                    body.child(
+                        div()
+                            .absolute()
+                            .inset_0()
+                            .bg(background.opacity(f32::from(veil) / 255.)),
+                    )
+                },
+            )
+            .when_some((!covered).then_some(find_bar).flatten(), |body, bar| {
+                body.child(bar)
             })
-            .when_some(find_bar, |body, bar| body.child(bar))
-            .when_some(copy_badge, |body, badge| body.child(badge))
+            .when_some((!covered).then_some(copy_badge).flatten(), |body, badge| {
+                body.child(badge)
+            })
             .when_some(status, |body, status| {
                 body.child(
                     div()

@@ -378,19 +378,31 @@ impl SheprdWindow {
         for (owner, mut area) in partition(&surface.frame, &surface.panes) {
             if surface.popup.is_none()
                 && let Owner::Pane(id) = &owner
-                && self.chats.shown(id)
             {
-                let input = surface
-                    .panes
-                    .iter()
-                    .find(|pane| pane.pane_id == *id)
-                    .and_then(|pane| self.chat_terminal_layout(pane, surface));
-                if let Some(layout) = input {
-                    // The live agent's original input stays at its original
-                    // coordinates. Only cells above that strip are replaced.
-                    let rows = layout.input.y..layout.input.y.saturating_add(layout.input.height);
-                    area.retain(|span| rows.contains(&span.row));
-                } else {
+                let pane = surface.panes.iter().find(|pane| pane.pane_id == *id);
+                if self.chats.shown(id) {
+                    if let Some(layout) =
+                        pane.and_then(|pane| self.chat_terminal_layout(pane, surface))
+                    {
+                        // The live agent's original input stays at its original
+                        // coordinates. Only cells above that strip are replaced.
+                        let rows =
+                            layout.input.y..layout.input.y.saturating_add(layout.input.height);
+                        area.retain(|span| rows.contains(&span.row));
+                    } else {
+                        continue;
+                    }
+                } else if let Some((layout, _)) =
+                    pane.and_then(|pane| self.chat_loading_conversation(pane, surface))
+                {
+                    let covered = layout.conversation.y
+                        ..layout
+                            .conversation
+                            .y
+                            .saturating_add(layout.conversation.height);
+                    area.retain(|span| !covered.contains(&span.row));
+                }
+                if area.is_empty() {
                     continue;
                 }
             }

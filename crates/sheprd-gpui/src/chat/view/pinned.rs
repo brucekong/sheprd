@@ -49,7 +49,7 @@ impl SheprdWindow {
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
         let entries = &chat.session.transcript().entries;
-        let index = pinned(entries, chat.glide.top(), !chat.glide.stopped())?;
+        let index = pinned(entries, chat.glide.top(), chat.glide.following())?;
         let entry = entries.get(index)?;
         let EntryKind::User { text, files } = &entry.kind else {
             return None;

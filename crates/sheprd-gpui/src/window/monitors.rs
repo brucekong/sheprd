@@ -12,6 +12,43 @@ impl SheprdWindow {
     /// Plan usage follows the selected host: a remote host reports its own
     /// agents' sign-ins, never this machine's.
     pub(super) fn update_usage(&mut self, cx: &mut Context<Self>) -> bool {
+        let has_antigravity = self.chats.panes().any(|pane| {
+            pane.available()
+                && matches!(
+                    pane.session
+                        .transcript()
+                        .agent
+                        .to_ascii_lowercase()
+                        .as_str(),
+                    "antigravity" | "agy"
+                )
+        }) || self.endpoints.iter().any(|endpoint| {
+            endpoint.live.snapshot.as_ref().is_some_and(|snapshot| {
+                snapshot.agents.iter().any(|agent| {
+                    agent
+                        .agent
+                        .as_deref()
+                        .is_some_and(|a| matches!(a, "antigravity" | "agy" | "antigravity-cli"))
+                        || agent.display_agent.as_deref().is_some_and(|d| {
+                            d.eq_ignore_ascii_case("antigravity") || d.eq_ignore_ascii_case("agy")
+                        })
+                        || agent.name.as_deref().is_some_and(|n| {
+                            n.eq_ignore_ascii_case("antigravity") || n.eq_ignore_ascii_case("agy")
+                        })
+                })
+            })
+        });
+        if has_antigravity
+            && let Some(provider) = crate::usage::registry::find("antigravity")
+            && !self.config.usage.shown(provider)
+            && !self.config.usage.hidden(provider)
+        {
+            self.config
+                .usage
+                .show_providers
+                .push(provider.id().to_owned());
+            self.config_load_revision = self.config_load_revision.wrapping_add(1);
+        }
         let host = self
             .config
             .usage

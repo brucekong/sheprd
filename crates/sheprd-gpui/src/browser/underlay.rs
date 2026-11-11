@@ -89,13 +89,13 @@ pub(crate) fn ground(color: Hsla, pages: Drawn) -> impl IntoElement {
     .inset_0()
 }
 
-/// `picture`, covering the whole of its parent as `ObjectFit::Cover` does,
-/// except where a page shows. The parent must be `relative()`.
-pub(crate) fn picture(picture: Arc<RenderImage>, pages: Drawn) -> impl IntoElement {
+/// `picture`, sized into its parent as `fit` does, except where a page
+/// shows. The parent must be `relative()`.
+pub(crate) fn picture(picture: Arc<RenderImage>, fit: ObjectFit, pages: Drawn) -> impl IntoElement {
     canvas(
         |_, _, _| {},
         move |bounds, _, window, _| {
-            let fitted = ObjectFit::Cover.get_bounds(bounds, picture.size(0));
+            let fitted = fit.get_bounds(bounds, picture.size(0));
             for piece in around(bounds, drawn(&pages)) {
                 if let Err(error) =
                     window.paint_image(piece, fitted, Corners::default(), picture.clone(), 0, false)

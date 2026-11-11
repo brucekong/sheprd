@@ -60,7 +60,7 @@ impl PaneChrome for Curved {
             .pt(px(LIP))
             .px(px(LIP))
             .rounded_t(px(CARD - 1.))
-            .bg(rgb(background))
+            .bg(cx.fill.base(background))
             .child(chip);
         column()
             .rounded(px(CARD))

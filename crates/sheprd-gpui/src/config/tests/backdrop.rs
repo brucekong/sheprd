@@ -25,7 +25,7 @@ fn the_backdrop_defaults_to_an_opaque_window() -> anyhow::Result<()> {
 fn backdrop_keys_parse_and_bad_values_are_refused() -> anyhow::Result<()> {
     // A literal string, so a Windows path's backslashes stay as they are.
     let config = Config::parse(&format!(
-        "[backdrop]\nopacity = 0.8\nblur = true\nimage = '{}'\nfit = 'tile'\n",
+        "[backdrop]\nopacity = 0.8\nblur = true\nimage = '{}'\nfit = 'contain'\ntint = 'blue'\n",
         picture().display()
     ))?;
     assert_eq!(
@@ -34,11 +34,25 @@ fn backdrop_keys_parse_and_bad_values_are_refused() -> anyhow::Result<()> {
             opacity: 0.8,
             blur: true,
             image: Some(picture()),
+            fit: Fit::Contain,
             material: Material::Acrylic,
         }
     );
     assert!(config.backdrop.translucent());
-    assert_eq!(config.unknown_keys, ["backdrop.fit"]);
+    assert_eq!(config.unknown_keys, ["backdrop.tint"]);
+    for (spelling, fit) in [
+        ("cover", Fit::Cover),
+        ("contain", Fit::Contain),
+        ("fill", Fit::Fill),
+        ("scale-down", Fit::ScaleDown),
+    ] {
+        assert_eq!(
+            Config::parse(&format!("[backdrop]\nfit = '{spelling}'\n"))?
+                .backdrop
+                .fit,
+            fit,
+        );
+    }
     for (invalid, expected) in [
         ("[backdrop]\nopacity = 1.5\n", "opacity"),
         ("[backdrop]\nopacity = -0.1\n", "opacity"),
@@ -56,6 +70,7 @@ fn backdrop_keys_parse_and_bad_values_are_refused() -> anyhow::Result<()> {
         assert_eq!(matched, expected, "{invalid}: {error}");
     }
     assert!(Config::parse("[backdrop]\nblur = 'yes'\n").is_err());
+    assert!(Config::parse("[backdrop]\nfit = 'tile'\n").is_err());
     Ok(())
 }
 
@@ -80,6 +95,7 @@ fn backdrop_edits_round_trip_and_keep_the_rest_of_the_file() -> anyhow::Result<(
     Config::save_backdrop_path(&Edit::Opacity(0.700_000_1), &path)?;
     Config::save_backdrop_path(&Edit::Blur(true), &path)?;
     Config::save_backdrop_path(&Edit::Image(Some(picture())), &path)?;
+    Config::save_backdrop_path(&Edit::Fit(Fit::ScaleDown), &path)?;
     Config::save_backdrop_path(&Edit::Material(Material::Mica), &path)?;
     Config::save_backdrop_path(&Edit::Material(Material::Acrylic), &path)?;
     let text = fs::read_to_string(&path)?;
@@ -95,6 +111,7 @@ fn backdrop_edits_round_trip_and_keep_the_rest_of_the_file() -> anyhow::Result<(
             opacity: 0.7,
             blur: true,
             image: Some(picture()),
+            fit: Fit::ScaleDown,
             material: Material::Acrylic,
         }
     );

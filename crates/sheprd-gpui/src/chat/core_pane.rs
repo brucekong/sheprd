@@ -197,6 +197,8 @@ impl SheprdWindow {
             .then(|| self.chats.pane(&pane_id))
             .flatten()
             .filter(|chat| chat.available());
+        let raw = self.chats.raw(&pane_id);
+        view.update(cx, |view, _| view.set_covered(chat.is_some() && !raw));
         let Some(chat) = chat else {
             return self.core_pane_menu_area(tab, terminal, view.clone(), cx);
         };
@@ -206,7 +208,7 @@ impl SheprdWindow {
             .bounds()
             .map(|bounds| bounds.size)
             .unwrap_or_default();
-        let overlay = if self.chats.raw(&pane_id) {
+        let overlay = if raw {
             self.render_chat_switch(&pane_id, Place::Fill(size), cx)
         } else {
             self.render_chat(chat, Place::Fill(size), cx)
