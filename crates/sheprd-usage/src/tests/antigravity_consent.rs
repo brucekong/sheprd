@@ -91,3 +91,17 @@ fn signed_in_antigravity_reads_the_agy_report_under_quiet_consent() {
     assert_eq!(report.windows.len(), 1);
     assert!(host.runs().contains("-p /usage --output-format json"));
 }
+
+#[test]
+fn falls_back_to_antigravity_binary_when_agy_is_absent() {
+    let host = AgyHost::new();
+    let bin = host.root.path().join("home/.local/bin");
+    std::fs::rename(bin.join("agy"), bin.join("antigravity")).unwrap();
+
+    let report = host
+        .fetch(Consent::Ask { browsers: false })
+        .expect("fallback antigravity binary was not found")
+        .expect("report parse failed");
+    assert_eq!(report.windows.len(), 1);
+    assert!(host.runs().contains("-p /usage --output-format json"));
+}

@@ -70,11 +70,17 @@ impl Service for Antigravity {
         if configured.is_none() && !used {
             return None;
         }
-        let program = configured.unwrap_or_else(|| "agy".into());
-        let version = probe
-            .command(&program, &["--version"], Duration::from_secs(5))
-            .ok()
-            .filter(|output| output.success)?;
+        let candidates: &[&str] = match configured.as_deref() {
+            Some(path) => &[path],
+            None => &["agy", "antigravity"],
+        };
+        let (program, version) = candidates.iter().find_map(|&candidate| {
+            let output = probe
+                .command(candidate, &["--version"], Duration::from_secs(5))
+                .ok()
+                .filter(|output| output.success)?;
+            Some((candidate, output))
+        })?;
         if parse_version(&version.stdout).is_none_or(|version| version < MINIMUM) {
             return Some(Err(Error::Command(
                 "agy 1.1.11 or later is needed for usage reports",
@@ -84,7 +90,7 @@ impl Service for Antigravity {
             probe
                 .command(
                     "/bin/sh",
-                    &["-c", REPORT_SCRIPT, "agy-usage", program.as_str()],
+                    &["-c", REPORT_SCRIPT, "agy-usage", program],
                     Duration::from_secs(100),
                 )
                 .and_then(|output| {

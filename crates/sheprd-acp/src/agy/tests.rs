@@ -43,7 +43,7 @@ const SAMPLE: &str = r#"{
 
 #[test]
 fn injects_usage_into_available_commands() {
-    let mut bridge = Bridge::new(|| Ok(SAMPLE.to_owned()));
+    let mut bridge = Bridge::new(|_| Ok(SAMPLE.to_owned()));
     let outs = bridge.on_harness(&json!({
         "jsonrpc": "2.0",
         "method": "session/update",
@@ -71,7 +71,7 @@ fn injects_usage_into_available_commands() {
 
 #[test]
 fn intercepts_usage_prompt_and_formats_report() {
-    let mut bridge = Bridge::new(|| Ok(SAMPLE.to_owned()));
+    let mut bridge = Bridge::new(|_| Ok(SAMPLE.to_owned()));
     let outs = bridge.on_session(Inbound::Request {
         id: wire::RequestId::Number(7),
         method: "session/prompt".to_owned(),
@@ -102,7 +102,7 @@ fn intercepts_usage_prompt_and_formats_report() {
 
 #[test]
 fn drops_echoed_user_message_chunks_outside_session_load() {
-    let mut bridge = Bridge::new(|| Ok(SAMPLE.to_owned()));
+    let mut bridge = Bridge::new(|_| Ok(SAMPLE.to_owned()));
     let user_chunk = json!({
         "jsonrpc": "2.0",
         "method": "session/update",
@@ -129,4 +129,59 @@ fn drops_echoed_user_message_chunks_outside_session_load() {
         "result": {}
     }));
     assert!(bridge.on_harness(&user_chunk).is_empty());
+}
+
+#[test]
+fn session_cancel_stops_in_flight_usage_check() {
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let seen_cancel = Arc::clone(&cancelled);
+    let mut bridge = Bridge::new(move |cancel| {
+        while !cancel.load(Ordering::Relaxed) {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        seen_cancel.store(true, Ordering::Relaxed);
+        Err(UsageError::TimedOut)
+    });
+
+    let outs = bridge.on_session(Inbound::Request {
+        id: wire::RequestId::Number(9),
+        method: "session/prompt".to_owned(),
+        params: json!({
+            "sessionId": "s1",
+            "prompt": [{"type": "text", "text": "/usage"}]
+        }),
+    });
+    assert!(outs.is_empty());
+    assert!(bridge.next_tick().is_some());
+
+    let cancel_outs = bridge.on_session(Inbound::Notification {
+        method: "session/cancel".to_owned(),
+        params: json!({"sessionId": "s1"}),
+    });
+    assert_eq!(cancel_outs.len(), 1);
+    let Out::Session(Inbound::Response {
+        id: wire::RequestId::Number(9),
+        result: Ok(val),
+    }) = &cancel_outs[0]
+    else {
+        panic!("expected cancelled prompt response");
+    };
+    assert_eq!(val["stopReason"], "cancelled");
+    assert!(bridge.next_tick().is_none());
+
+    for _ in 0..40 {
+        if cancelled.load(Ordering::Relaxed) {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    assert!(cancelled.load(Ordering::Relaxed));
+}
+
+#[test]
+fn parses_and_checks_minimum_agy_version() {
+    assert_eq!(parse_version("agy 1.2.0\n"), Some((1, 2, 0)));
+    assert_eq!(parse_version("v1.1.11"), Some((1, 1, 11)));
+    assert!(parse_version("1.1.10").unwrap() < MINIMUM_VERSION);
+    assert!(parse_version("1.1.11").unwrap() >= MINIMUM_VERSION);
 }

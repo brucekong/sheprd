@@ -24,7 +24,7 @@ const MODEL_WIDTH: f32 = 160.;
 
 impl SheprdWindow {
     /// The bar's height, which grows with the UI font.
-    pub(super) fn status_bar_height(&self) -> f32 {
+    pub(crate) fn status_bar_height(&self) -> f32 {
         (self.config.ui.size * 1.5 + 4.).max(22.)
     }
 

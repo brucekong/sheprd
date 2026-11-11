@@ -220,10 +220,10 @@ impl SheprdWindow {
                             .size(px(12.))
                             .text_color(rgb(if on { theme.text_on(fill) } else { theme.muted })),
                     )
-                    .on_click(cx.listener(move |this, _: &ClickEvent, _, cx| {
+                    .on_click(cx.listener(move |this, _: &ClickEvent, window, cx| {
                         cx.stop_propagation();
                         if on {
-                            this.send_chat_composer(&pane_id, cx);
+                            this.send_chat_composer(&pane_id, window, cx);
                         }
                     }))
             }

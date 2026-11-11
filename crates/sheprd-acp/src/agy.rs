@@ -12,10 +12,15 @@ use std::{
     ffi::{OsStr, OsString},
     io::Read,
     process::Stdio,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
     time::{Duration, Instant},
 };
 
 use acp::v1 as wire;
+use crossbeam_channel::{Receiver, RecvTimeoutError, TryRecvError, bounded};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -25,13 +30,19 @@ use crate::{
 };
 
 const MAX_USAGE_BYTES: usize = 1024 * 1024;
+const VERSION_TIMEOUT: Duration = Duration::from_secs(5);
 const USAGE_TIMEOUT: Duration = Duration::from_secs(35);
 const POLL_INTERVAL: Duration = Duration::from_millis(50);
+const FAST_WAIT: Duration = Duration::from_millis(10);
+/// Earlier builds could send `/usage` to the model as a prompt.
+const MINIMUM_VERSION: (u64, u64, u64) = (1, 1, 11);
 
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum UsageError {
     #[error("could not run agy for usage: {0}")]
     Spawn(#[from] std::io::Error),
+    #[error("agy 1.1.11 or later is needed for usage reports")]
+    UnsupportedVersion,
     #[error("agy timed out while reading model quota usage")]
     TimedOut,
     #[error("agy could not report model quota usage; run `agy` to sign in")]
@@ -44,58 +55,131 @@ pub(crate) enum UsageError {
 
 /// How the session reaches `agy acp`.
 pub(crate) fn reach(program: OsString) -> Box<dyn Reach> {
-    Box::new(Translated(Bridge::new(move || fetch_usage(&program))))
+    Box::new(Translated(Bridge::new(move |cancel| {
+        fetch_usage(&program, cancel)
+    })))
+}
+
+struct PendingUsage {
+    id: wire::RequestId,
+    session_id: String,
+    cancel: Arc<AtomicBool>,
+    rx: Receiver<Result<String, UsageError>>,
+    next_poll: Instant,
 }
 
 pub(crate) struct Bridge<F> {
-    fetch: F,
+    fetch: Arc<F>,
     loading: Option<wire::RequestId>,
+    pending_usage: Option<PendingUsage>,
 }
 
 impl<F> Bridge<F>
 where
-    F: FnMut() -> Result<String, UsageError> + Send + 'static,
+    F: Fn(&AtomicBool) -> Result<String, UsageError> + Send + Sync + 'static,
 {
     pub(crate) fn new(fetch: F) -> Self {
         Self {
-            fetch,
+            fetch: Arc::new(fetch),
             loading: None,
+            pending_usage: None,
         }
     }
 
-    fn handle_usage(&mut self, id: wire::RequestId, session_id: &str) -> Vec<Out> {
-        let update = match (self.fetch)().and_then(|body| format_report(&body)) {
-            Ok(markdown) => wire::SessionUpdate::AgentMessageChunk(wire::ContentChunk::new(
-                wire::ContentBlock::Text(wire::TextContent::new(markdown)),
-            )),
-            Err(error) => wire::SessionUpdate::Notice(wire::Notice::new(
-                wire::NoticeSeverity::Warning,
-                error.to_string(),
-            )),
-        };
-        let notification = wire::SessionNotification::new(session_id.to_owned(), update);
-        let mut outs = Vec::with_capacity(2);
-        if let Ok(params) = serde_json::to_value(notification) {
-            outs.push(Out::Session(Inbound::Notification {
-                method: "session/update".to_owned(),
-                params,
-            }));
+    fn start_usage(&mut self, id: wire::RequestId, session_id: String) -> Vec<Out> {
+        if let Some(prev) = self.pending_usage.take() {
+            prev.cancel.store(true, Ordering::Relaxed);
         }
-        let stop = wire::PromptResponse::new(wire::StopReason::EndTurn);
-        if let Ok(result) = serde_json::to_value(stop) {
-            outs.push(Out::Session(Inbound::Response {
-                id,
-                result: Ok(result),
-            }));
+        let cancel = Arc::new(AtomicBool::new(false));
+        let worker_cancel = Arc::clone(&cancel);
+        let fetch = Arc::clone(&self.fetch);
+        let (tx, rx) = bounded(1);
+        std::thread::spawn(move || {
+            let _ = tx.send(fetch(&worker_cancel));
+        });
+        match rx.recv_timeout(FAST_WAIT) {
+            Ok(result) => finish_usage(id, &session_id, result),
+            Err(RecvTimeoutError::Timeout) => {
+                self.pending_usage = Some(PendingUsage {
+                    id,
+                    session_id,
+                    cancel,
+                    rx,
+                    next_poll: Instant::now() + POLL_INTERVAL,
+                });
+                Vec::new()
+            }
+            Err(RecvTimeoutError::Disconnected) => {
+                finish_usage(id, &session_id, Err(UsageError::CommandFailed))
+            }
         }
-        outs
     }
+}
+
+fn finish_usage(
+    id: wire::RequestId,
+    session_id: &str,
+    result: Result<String, UsageError>,
+) -> Vec<Out> {
+    let update = match result.and_then(|body| format_report(&body)) {
+        Ok(markdown) => wire::SessionUpdate::AgentMessageChunk(wire::ContentChunk::new(
+            wire::ContentBlock::Text(wire::TextContent::new(markdown)),
+        )),
+        Err(error) => wire::SessionUpdate::Notice(wire::Notice::new(
+            wire::NoticeSeverity::Warning,
+            error.to_string(),
+        )),
+    };
+    let notification = wire::SessionNotification::new(session_id.to_owned(), update);
+    let mut outs = Vec::with_capacity(2);
+    if let Ok(params) = serde_json::to_value(notification) {
+        outs.push(Out::Session(Inbound::Notification {
+            method: "session/update".to_owned(),
+            params,
+        }));
+    }
+    let stop = wire::PromptResponse::new(wire::StopReason::EndTurn);
+    if let Ok(result) = serde_json::to_value(stop) {
+        outs.push(Out::Session(Inbound::Response {
+            id,
+            result: Ok(result),
+        }));
+    }
+    outs
 }
 
 impl<F> Translator for Bridge<F>
 where
-    F: FnMut() -> Result<String, UsageError> + Send + 'static,
+    F: Fn(&AtomicBool) -> Result<String, UsageError> + Send + Sync + 'static,
 {
+    fn next_tick(&self) -> Option<Instant> {
+        self.pending_usage.as_ref().map(|pending| pending.next_poll)
+    }
+
+    fn tick(&mut self) -> Vec<Out> {
+        let Some(pending) = self.pending_usage.as_mut() else {
+            return Vec::new();
+        };
+        match pending.rx.try_recv() {
+            Ok(result) => {
+                let Some(done) = self.pending_usage.take() else {
+                    return Vec::new();
+                };
+                finish_usage(done.id, &done.session_id, result)
+            }
+            Err(TryRecvError::Empty) => {
+                pending.next_poll = Instant::now() + POLL_INTERVAL;
+                Vec::new()
+            }
+            Err(TryRecvError::Disconnected) => {
+                let Some(done) = self.pending_usage.take() else {
+                    return Vec::new();
+                };
+                finish_usage(done.id, &done.session_id, Err(UsageError::CommandFailed))
+            }
+        }
+    }
+
     fn start(&mut self) -> Vec<Out> {
         Vec::new()
     }
@@ -109,7 +193,7 @@ where
                 if method == "session/prompt"
                     && let Some(session_id) = usage_prompt_session(&params)
                 {
-                    return self.handle_usage(id, &session_id);
+                    return self.start_usage(id, session_id);
                 }
                 vec![Out::Harness(json!({
                     "jsonrpc": "2.0",
@@ -118,11 +202,27 @@ where
                     "params": params,
                 }))]
             }
-            Inbound::Notification { method, params } => vec![Out::Harness(json!({
-                "jsonrpc": "2.0",
-                "method": method,
-                "params": params,
-            }))],
+            Inbound::Notification { method, params } => {
+                if method == "session/cancel"
+                    && let Some(pending) = self.pending_usage.take()
+                {
+                    pending.cancel.store(true, Ordering::Relaxed);
+                    let stop = wire::PromptResponse::new(wire::StopReason::Cancelled);
+                    return serde_json::to_value(stop)
+                        .map(|result| {
+                            vec![Out::Session(Inbound::Response {
+                                id: pending.id,
+                                result: Ok(result),
+                            })]
+                        })
+                        .unwrap_or_default();
+                }
+                vec![Out::Harness(json!({
+                    "jsonrpc": "2.0",
+                    "method": method,
+                    "params": params,
+                }))]
+            }
             Inbound::Response { id, result } => {
                 let message = match result {
                     Ok(result) => json!({"jsonrpc": "2.0", "id": id, "result": result}),
@@ -130,7 +230,12 @@ where
                 };
                 vec![Out::Harness(message)]
             }
-            Inbound::Closed(_) => Vec::new(),
+            Inbound::Closed(_) => {
+                if let Some(pending) = self.pending_usage.take() {
+                    pending.cancel.store(true, Ordering::Relaxed);
+                }
+                Vec::new()
+            }
         }
     }
 
@@ -235,30 +340,66 @@ fn usage_prompt_session(params: &Value) -> Option<String> {
     matches!(text, "/usage" | "/quota").then(|| session_id.to_owned())
 }
 
-fn fetch_usage(program: &OsStr) -> Result<String, UsageError> {
+fn fetch_usage(program: &OsStr, cancel: &AtomicBool) -> Result<String, UsageError> {
+    check_version(program, cancel)?;
     let temp_dir = std::env::temp_dir().join(format!("sheprd-agy-usage-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&temp_dir)?;
-    let result = run_usage_in(program, &temp_dir);
-    let _ = std::fs::remove_dir_all(&temp_dir);
-    result
-}
-
-fn run_usage_in(program: &OsStr, cwd: &std::path::Path) -> Result<String, UsageError> {
-    let mut command = sheprd_client::new_command(program);
-    command
-        .args([
+    let result = run_command_in(
+        program,
+        &[
             "-p",
             "/usage",
             "--output-format",
             "json",
             "--print-timeout",
             "30s",
-        ])
-        .current_dir(cwd)
+        ],
+        Some(&temp_dir),
+        USAGE_TIMEOUT,
+        cancel,
+    );
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    result
+}
+
+fn check_version(program: &OsStr, cancel: &AtomicBool) -> Result<(), UsageError> {
+    let stdout = run_command_in(program, &["--version"], None, VERSION_TIMEOUT, cancel)?;
+    if parse_version(&stdout).is_none_or(|version| version < MINIMUM_VERSION) {
+        return Err(UsageError::UnsupportedVersion);
+    }
+    Ok(())
+}
+
+/// Parses a plain `major.minor.patch` version token from `agy --version`.
+pub(crate) fn parse_version(text: &str) -> Option<(u64, u64, u64)> {
+    let text = text.trim();
+    let text = text
+        .rsplit(' ')
+        .next()
+        .unwrap_or(text)
+        .trim_start_matches('v');
+    let mut parts = text.split('.').map(|part| part.parse::<u64>().ok());
+    let version = (parts.next()??, parts.next()??, parts.next()??);
+    parts.next().is_none().then_some(version)
+}
+
+fn run_command_in(
+    program: &OsStr,
+    args: &[&str],
+    cwd: Option<&std::path::Path>,
+    timeout: Duration,
+    cancel: &AtomicBool,
+) -> Result<String, UsageError> {
+    let mut command = sheprd_client::new_command(program);
+    command
+        .args(args)
         .env("NO_COLOR", "1")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null());
+    if let Some(dir) = cwd {
+        command.current_dir(dir);
+    }
     let mut child = command.spawn()?;
     let mut stdout = child.stdout.take();
     let reader = std::thread::spawn(move || {
@@ -268,12 +409,12 @@ fn run_usage_in(program: &OsStr, cwd: &std::path::Path) -> Result<String, UsageE
         }
         buf
     });
-    let deadline = Instant::now() + USAGE_TIMEOUT;
+    let deadline = Instant::now() + timeout;
     let status = loop {
         if let Some(status) = child.try_wait()? {
             break status;
         }
-        if Instant::now() >= deadline {
+        if cancel.load(Ordering::Relaxed) || Instant::now() >= deadline {
             let _ = child.kill();
             let _ = child.wait();
             return Err(UsageError::TimedOut);
