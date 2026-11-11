@@ -45,14 +45,13 @@ macro_rules! agents {
 }
 
 agents! {
-    // keep-sorted start
     Claude => "claude", "Claude", "run `claude` and use /login", [("claude-agent-acp"), ("npx", "-y", "@agentclientprotocol/claude-agent-acp")];
     Codex => "codex", "Codex", "run `codex login`", [("codex-acp"), ("npx", "-y", "@agentclientprotocol/codex-acp")];
     Copilot => "copilot", "Copilot", "run `copilot` and use /login, or for GitHub Enterprise `copilot login --host HOST` with GH_HOST set", [("copilot", "--acp")];
+    Antigravity => "agy", "Antigravity", "run `agy acp --login` or `agy`", [("agy", "acp"), ("antigravity", "acp")];
     Gemini => "gemini", "Gemini", "run `gemini` once to sign in", [("gemini", "--acp")];
     Opencode => "opencode", "OpenCode", "run `opencode auth login`", [("opencode", "acp")];
     Pi => "pi", "Pi", "run `pi` and use /login, or set your provider's API key", [("pi-acp"), ("npx", "-y", "pi-acp")];
-    // keep-sorted end
 }
 
 /// A name that is not a built-in agent.

@@ -214,7 +214,7 @@ Limitations:
   folder could be handed the old chat.
 - A chat whose shell folder differs from the chat's own (started with
   `--cwd`) is not continued.
-- Only the built-in agents (`claude`, `codex`, `copilot`, `gemini`,
+- Only the built-in agents (`claude`, `codex`, `copilot`, `agy`, `gemini`,
   `opencode`, `pi`) started without extra agent arguments. Custom commands
   are not continued.
 - `[chat.env]` variables are not set again: typing their values into a shell

@@ -403,7 +403,7 @@ impl SheprdWindow {
         let focus = composer.read(cx).focus.clone();
         window.focus(&focus, cx);
         if mode == ActionMode::Send {
-            self.send_chat_composer(&request.target.pane_id, cx);
+            self.send_chat_composer(&request.target.pane_id, window, cx);
         }
         cx.notify();
     }

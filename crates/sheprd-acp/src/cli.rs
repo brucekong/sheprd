@@ -120,6 +120,7 @@ Agents:
   codex      codex app-server, or with --acp codex-acp
              (or npx @agentclientprotocol/codex-acp)
   copilot    copilot --acp
+  agy        agy acp (or antigravity acp)
   gemini     gemini --acp
   opencode   opencode acp
   pi         pi --mode rpc, or with --acp pi-acp (or npx pi-acp)

@@ -4,9 +4,9 @@
 //! `$GEMINI_CLI_HOME`, else `~/.gemini`). The report's Gemini and Claude/GPT
 //! groups give a 5-hour and a weekly window each. The report sends no model
 //! prompt and prints no credentials; it runs in a fresh empty directory so no
-//! project is loaded. A signed-out `agy` opens a browser to sign in instead,
-//! so the report runs only when the config asks for Antigravity, never for a
-//! merely detected install.
+//! project is loaded. A signed-in `agy` (with an OAuth token) reports quietly
+//! by default; a signed-out `agy` opens a browser to sign in instead, so it runs
+//! only when the config asks for Antigravity, never for a merely detected install.
 //!
 //! Not ported: the Antigravity app's and IDE's local language server and the
 //! `agy` HTTPS server (process and port discovery, CSRF tokens, and loopback
@@ -30,7 +30,7 @@ use std::time::Duration;
 /// Runs `$1` in a private empty directory and removes it afterwards.
 const REPORT_SCRIPT: &str = r#"d=$(mktemp -d) || exit 1
 cd "$d" || exit 1
-"$1" -p /usage --output-format json --print-timeout 90s
+"$1" -p /usage --output-format json --print-timeout 90s </dev/null
 s=$?
 cd / && rmdir "$d" 2>/dev/null
 exit $s"#;
@@ -58,11 +58,15 @@ impl Service for Antigravity {
         let configured = probe
             .text_setting("cli_path")
             .filter(|path| !path.is_empty());
-        if configured.is_none() && !probe.requested() {
+        let data = |rest: &str| HostPath::env_or("GEMINI_CLI_HOME", ".gemini", rest);
+        let signed_in = probe.exists(&data("antigravity-cli/antigravity-oauth-token"))
+            || probe.exists(&data("jetski-standalone-oauth-token"));
+        if configured.is_none() && !probe.requested() && !signed_in {
             return None;
         }
-        let data = |rest: &str| HostPath::env_or("GEMINI_CLI_HOME", ".gemini", rest);
-        let used = probe.exists(&data("antigravity-cli")) || probe.exists(&data("antigravity"));
+        let used = signed_in
+            || probe.exists(&data("antigravity-cli"))
+            || probe.exists(&data("antigravity"));
         if configured.is_none() && !used {
             return None;
         }
@@ -145,7 +149,7 @@ pub(crate) fn parse(body: &str) -> Result<Report> {
 fn group_title(name: Option<String>) -> Text {
     let name = name.unwrap_or_default().trim().to_owned();
     let lower = name.to_lowercase();
-    if lower.contains("gemini") {
+    if lower == "gemini" || lower == "gemini models" {
         Text::service("Gemini")
     } else if lower.contains("claude") || lower.contains("gpt") {
         Text::service("Claude/GPT")
@@ -319,6 +323,10 @@ mod tests {
               {"id": "3p-5h", "name": "Five Hour Limit Remaining", "window": "5h",
                "remaining_fraction": 1.0, "reset_time": "2026-09-13T05:29:19Z"},
               {"id": "3p-image", "name": "Images", "disabled": true, "remaining_fraction": 0.1}
+            ]},
+            {"name": "Gemini 4 Argon", "description": "Argon quota", "buckets": [
+              {"id": "gemini-argon-wtu-weekly", "name": "Gemini 4 Argon Weekly Limit",
+               "window": "weekly", "remaining_fraction": 0.77, "reset_time": "2026-09-18T02:07:17Z"}
             ]}
           ]
         }
@@ -348,6 +356,7 @@ mod tests {
                 (kind("Claude/GPT", "weekly"), 11, Some(WEEK)),
                 (kind("Gemini", "session"), 5, Some(SESSION)),
                 (kind("Gemini", "weekly"), 14, Some(WEEK)),
+                (kind("Gemini 4 Argon", "weekly"), 23, Some(WEEK)),
             ]
         );
         assert_eq!(

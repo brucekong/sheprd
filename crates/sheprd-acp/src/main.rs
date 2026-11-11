@@ -2,6 +2,7 @@
 //! there, and lets Sheprd attach to it.
 
 mod agents;
+mod agy;
 mod app;
 mod attach;
 mod claude;

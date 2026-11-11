@@ -73,3 +73,21 @@ fn listed_antigravity_reads_the_agy_report() {
     assert_eq!(report.windows.len(), 1);
     assert!(host.runs().contains("-p /usage --output-format json"));
 }
+
+#[test]
+fn signed_in_antigravity_reads_the_agy_report_under_quiet_consent() {
+    let host = AgyHost::new();
+    let token_path = host
+        .root
+        .path()
+        .join("home/.gemini/antigravity-cli/antigravity-oauth-token");
+    std::fs::create_dir_all(token_path.parent().unwrap()).unwrap();
+    std::fs::write(token_path, "{}").unwrap();
+
+    let report = host
+        .fetch(Consent::Quiet)
+        .expect("signed-in agy was not fetched under quiet consent")
+        .expect("report parse failed");
+    assert_eq!(report.windows.len(), 1);
+    assert!(host.runs().contains("-p /usage --output-format json"));
+}

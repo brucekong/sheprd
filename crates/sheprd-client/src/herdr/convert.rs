@@ -44,7 +44,7 @@ pub const INTERRUPTS: u32 = 8;
 pub fn convertible(agent: Agent) -> bool {
     match agent {
         Agent::Claude | Agent::Codex | Agent::Copilot | Agent::Opencode => true,
-        Agent::Gemini | Agent::Pi => false,
+        Agent::Antigravity | Agent::Gemini | Agent::Pi => false,
     }
 }
 

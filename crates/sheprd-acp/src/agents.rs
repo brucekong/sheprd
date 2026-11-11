@@ -74,7 +74,7 @@ fn native(agent: Agent) -> Option<&'static str> {
         Agent::Claude => Some(crate::claude::PROGRAM),
         Agent::Codex => Some(crate::codex::PROGRAM),
         Agent::Pi => Some(crate::pi::PROGRAM),
-        Agent::Copilot | Agent::Gemini | Agent::Opencode => None,
+        Agent::Antigravity | Agent::Copilot | Agent::Gemini | Agent::Opencode => None,
     }
 }
 

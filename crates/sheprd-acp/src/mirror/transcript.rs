@@ -65,7 +65,9 @@ impl TryFrom<Agent> for TranscriptAgent {
         match agent {
             Agent::Claude => Ok(Self::Claude),
             Agent::Codex => Ok(Self::Codex),
-            Agent::Copilot | Agent::Gemini | Agent::Opencode | Agent::Pi => Err(agent),
+            Agent::Antigravity | Agent::Copilot | Agent::Gemini | Agent::Opencode | Agent::Pi => {
+                Err(agent)
+            }
         }
     }
 }

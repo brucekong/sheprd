@@ -445,7 +445,9 @@ impl SheprdWindow {
                     input.replace_text_in_range(None, "\n", window, cx)
                 });
             }
-            "enter" if !modifiers.modified() => self.submit_chat_prompt(pane_id, &input, cx),
+            "enter" if !modifiers.modified() => {
+                self.submit_chat_prompt(pane_id, &input, window, cx)
+            }
             "escape"
                 if !modifiers.modified() && pane.session.transcript().status == Status::Working =>
             {
@@ -811,7 +813,12 @@ impl SheprdWindow {
     }
 
     /// Sends what the composer holds, as Enter does.
-    pub(super) fn send_chat_composer(&mut self, pane_id: &str, cx: &mut Context<Self>) {
+    pub(super) fn send_chat_composer(
+        &mut self,
+        pane_id: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let Some(input) = self
             .chats
             .pane(pane_id)
@@ -819,7 +826,7 @@ impl SheprdWindow {
         else {
             return;
         };
-        self.submit_chat_prompt(pane_id, &input, cx);
+        self.submit_chat_prompt(pane_id, &input, window, cx);
         cx.notify();
     }
 
@@ -827,6 +834,7 @@ impl SheprdWindow {
         &mut self,
         pane_id: &str,
         input: &Entity<MultilineInput>,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let Some(pane) = self.chats.pane_mut(pane_id) else {
@@ -849,6 +857,16 @@ impl SheprdWindow {
         if !text.trim().is_empty() {
             pane.history.push(&text, pane.session.transcript());
         }
+        let open_agy_usage = pane.attachments.is_empty()
+            && matches!(text.trim(), "/usage" | "/quota")
+            && matches!(
+                pane.session
+                    .transcript()
+                    .agent
+                    .to_ascii_lowercase()
+                    .as_str(),
+                "antigravity" | "agy"
+            );
         let attachments = pane
             .attachments
             .iter()
@@ -861,6 +879,9 @@ impl SheprdWindow {
                 pane.error = None;
                 pane.attachments.clear();
                 input.update(cx, |input, cx| input.clear(cx));
+                if open_agy_usage {
+                    self.show_provider_usage("antigravity", window, cx);
+                }
             }
             Err(error) => pane.error = Some(error.localize()),
         }

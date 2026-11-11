@@ -14,5 +14,6 @@ fn names_round_trip_and_are_unique() {
     names.dedup();
     assert_eq!(names.len(), Agent::ALL.len());
     assert_eq!("nope".parse::<Agent>(), Err(UnknownAgent));
+    assert!(Agent::names().contains("agy"));
     assert!(Agent::names().contains("claude"));
 }

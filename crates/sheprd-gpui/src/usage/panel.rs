@@ -29,6 +29,31 @@ impl SheprdWindow {
         }
     }
 
+    /// Enables `provider` for this session's usage reads, leads the status
+    /// bar with it, and opens its usage panel above the status bar.
+    pub(crate) fn show_provider_usage(
+        &mut self,
+        id: &str,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(provider) = super::registry::find(id) else {
+            return;
+        };
+        if !self.config.usage.shown(provider) && !self.config.usage.hidden(provider) {
+            self.config
+                .usage
+                .show_providers
+                .push(provider.id().to_owned());
+            self.config_load_revision = self.config_load_revision.wrapping_add(1);
+        }
+        self.usage.choose(provider);
+        self.usage.refresh(Instant::now());
+        let viewport = window.viewport_size();
+        let y = (viewport.height - px(self.status_bar_height() + PANEL_GAP)).max(px(60.));
+        self.open_usage(provider, point(px(16.), y), window, cx);
+    }
+
     /// Shows `provider` in the panel and leads the status bar with it.
     fn choose_usage(&mut self, provider: Provider) {
         self.menu.page = Some(Page::Usage(provider));

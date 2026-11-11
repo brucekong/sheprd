@@ -58,7 +58,13 @@ fn agent(options: &Options, cwd: &std::path::Path) -> Agent {
                         (program.into_os_string(), args, reach)
                     }
                     // An ACP agent replays its own history on `session/load`.
-                    Launch::Acp(program, args) => (program, args, Box::new(Acp)),
+                    Launch::Acp(program, args) => {
+                        let reach: Box<dyn Reach> = match agent {
+                            crate::agents::Agent::Antigravity => crate::agy::reach(program.clone()),
+                            _ => Box::new(Acp),
+                        };
+                        (program, args, reach)
+                    }
                 };
             args.extend(extra.iter().cloned());
             Agent {

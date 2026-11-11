@@ -58,7 +58,7 @@ fn every_agent_is_decided() {
     for agent in [Agent::Claude, Agent::Codex, Agent::Copilot, Agent::Opencode] {
         assert!(moving.contains(&agent));
     }
-    for agent in [Agent::Gemini, Agent::Pi] {
+    for agent in [Agent::Antigravity, Agent::Gemini, Agent::Pi] {
         assert!(matches!(
             check(&reported(Some(agent.name()), AgentStatus::Idle, &[])),
             Err(Error::Unsupported(found)) if found == agent

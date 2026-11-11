@@ -15,7 +15,7 @@ Chats run through `sheprd-acp`, a program shipped beside the app. It talks to th
 
 `sheprd-acp` is the agent's only client, so the Herdr TUI, a plain terminal, and every Sheprd window see one conversation. Both views stay live: a prompt or an answer from either shows in both, and the first answer to a permission request wins. Closing Sheprd leaves the chat running in its pane.
 
-The built-in agents are Claude, Codex, Copilot, Gemini, OpenCode, and Pi. Each has to be installed: `claude`, `codex` and `pi` (which `sheprd-acp` drives without an ACP adapter), `copilot --acp`, `gemini --acp`, or `opencode acp`. Each agent signs in its own way; when it reports that it needs authentication, the chat says how.
+The built-in agents are Claude, Codex, Copilot, Antigravity, Gemini, OpenCode, and Pi. Each has to be installed: `claude`, `codex` and `pi` (which `sheprd-acp` drives without an ACP adapter), `copilot --acp`, `agy acp`, `gemini --acp`, or `opencode acp`. Each agent signs in its own way; when it reports that it needs authentication, the chat says how.
 
 ## Turning chats on and configuring them
 

@@ -48,6 +48,7 @@ fn other_agents_keep_their_acp_command() {
     let dir = tempfile::tempdir().unwrap();
     install(dir.path(), "claude");
     install(dir.path(), "opencode");
+    install(dir.path(), "agy");
     let path = dir.path().as_os_str();
     assert_eq!(
         launch(Agent::Opencode, Some(path), false),
@@ -55,6 +56,10 @@ fn other_agents_keep_their_acp_command() {
             dir.path().join("opencode").into_os_string(),
             vec!["acp".into()]
         )
+    );
+    assert_eq!(
+        launch(Agent::Antigravity, Some(path), false),
+        Launch::Acp(dir.path().join("agy").into_os_string(), vec!["acp".into()])
     );
 }
 

@@ -166,6 +166,7 @@ it; terminals that do not ignore it.
 | `claude` | `claude` itself (see below); with `--acp`, `claude-agent-acp`, else `npx -y @agentclientprotocol/claude-agent-acp` |
 | `codex` | `codex app-server` (see below); with `--acp`, `codex-acp`, else `npx -y @agentclientprotocol/codex-acp` |
 | `copilot` | `copilot --acp` |
+| `agy` | `agy acp`, else `antigravity acp` |
 | `gemini` | `gemini --acp` |
 | `opencode` | `opencode acp` |
 | `pi` | `pi --mode rpc` (see below); with `--acp`, `pi-acp`, else `npx -y pi-acp` |
